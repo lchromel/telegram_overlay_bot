@@ -21,8 +21,17 @@ def process_image(image_path, headline, subtitle, disclaimer):
             output_size = (1200, 1500)
             overlay_path = "Overlay/1200x1500.png"
 
-        # Resize base image
-        resized = base_image.resize(output_size)
+        # Cover and crop logic
+        out_w, out_h = output_size
+        scale = max(out_w / width, out_h / height)
+        new_w = int(width * scale)
+        new_h = int(height * scale)
+        resized = base_image.resize((new_w, new_h), Image.LANCZOS)
+        left = (new_w - out_w) // 2
+        top = (new_h - out_h) // 2
+        right = left + out_w
+        bottom = top + out_h
+        cropped = resized.crop((left, top, right, bottom))
         
         # Load and resize overlay
         with Image.open(overlay_path) as overlay_img:
@@ -45,7 +54,7 @@ def process_image(image_path, headline, subtitle, disclaimer):
             draw.text((50, output_size[1] - 100), disclaimer, font=body_font, fill="white")
 
         # Combine all layers
-        result = Image.alpha_composite(resized.convert("RGBA"), overlay)
+        result = Image.alpha_composite(cropped.convert("RGBA"), overlay)
         result = Image.alpha_composite(result, text_layer)
         
         output_path = "result.png"
