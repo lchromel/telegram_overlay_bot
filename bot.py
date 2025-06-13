@@ -69,21 +69,21 @@ def process_image(image_path, headline, subtitle, disclaimer):
             shortest_side = min(out_w, out_h)
             max_text_width = int(shortest_side * 0.8)
 
-        # 1200x1200 and 1200x1500: anchor all text blocks to the bottom with 28px spacing between blocks
+        # 1200x1200 and 1200x1500: anchor all text blocks to the bottom with 24px spacing between blocks, order: disclaimer, subheadline, headline
         if output_size in [(1200, 1200), (1200, 1500)]:
             blocks = []
-            if headline:
-                headline_lines = wrap_text(headline, headline_font, draw, max_text_width)
-                blocks.append((headline_lines, headline_font))
-            if subtitle:
-                subtitle_lines = wrap_text(subtitle, body_font, draw, max_text_width)
-                blocks.append((subtitle_lines, body_font))
             if disclaimer:
                 disclaimer_lines = wrap_text(disclaimer, body_font, draw, max_text_width)
                 blocks.append((disclaimer_lines, body_font))
+            if subtitle:
+                subtitle_lines = wrap_text(subtitle, body_font, draw, max_text_width)
+                blocks.append((subtitle_lines, body_font))
+            if headline:
+                headline_lines = wrap_text(headline, headline_font, draw, max_text_width)
+                blocks.append((headline_lines, headline_font))
             # Draw from bottom up: disclaimer, subtitle, headline
             y = out_h - 50  # 50px bottom margin
-            for lines, font in reversed(blocks):
+            for lines, font in blocks:
                 block_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*10
                 y -= block_height
                 for line in lines:
@@ -92,15 +92,15 @@ def process_image(image_path, headline, subtitle, disclaimer):
                     draw.text((x, y), line, font=font, fill="white")
                     y += h + 10
                 y -= 10  # Remove last line spacing
-                y -= 28  # 28px block spacing
-        # 1200x628: anchor all text blocks to the top, 40px margin from top and left, 28px spacing between blocks
+                y -= 24  # 24px block spacing
+        # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         elif output_size == (1200, 628):
             y = 40
             if headline:
                 lines = wrap_text(headline, headline_font, draw, max_text_width)
                 for line in lines:
                     w, h = draw.textbbox((0, 0), line, font=headline_font)[2:]
-                    x = 40
+                    x = (out_w - w) // 2
                     draw.text((x, y), line, font=headline_font, fill="white")
                     y += h + 10
                 y -= 10
@@ -109,7 +109,7 @@ def process_image(image_path, headline, subtitle, disclaimer):
                 lines = wrap_text(subtitle, body_font, draw, max_text_width)
                 for line in lines:
                     w, h = draw.textbbox((0, 0), line, font=body_font)[2:]
-                    x = 40
+                    x = (out_w - w) // 2
                     draw.text((x, y), line, font=body_font, fill="white")
                     y += h + 10
                 y -= 10
