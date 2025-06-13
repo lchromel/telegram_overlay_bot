@@ -97,10 +97,9 @@ def process_image(image_path, headline, subtitle, disclaimer):
             if subtitle:
                 subtitle_lines = wrap_text(subtitle, subheadline_font, draw, max_text_width)
                 blocks.append((subtitle_lines, subheadline_font, 'subheadline'))
-             if disclaimer:
+            if disclaimer:
                 disclaimer_lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
                 blocks.append((disclaimer_lines, disclaimer_font, 'disclaimer'))
-
             # Calculate total height of all blocks (including 24px spacing between blocks)
             block_heights = []
             for lines, font, block_type in blocks:
