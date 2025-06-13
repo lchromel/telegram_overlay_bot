@@ -5,6 +5,23 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 
 user_text = {}
 
+def wrap_text(text, font, draw, max_width):
+    words = text.split()
+    lines = []
+    current_line = ''
+    for word in words:
+        test_line = current_line + (' ' if current_line else '') + word
+        w, _ = draw.textbbox((0, 0), test_line, font=font)[2:]
+        if w <= max_width:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = word
+    if current_line:
+        lines.append(current_line)
+    return lines
+
 def process_image(image_path, headline, subtitle, disclaimer):
     with Image.open(image_path) as base_image:
         width, height = base_image.size
@@ -45,13 +62,46 @@ def process_image(image_path, headline, subtitle, disclaimer):
         headline_font = ImageFont.truetype("Fonts/YangoGroupHeadline-HeavyArabic.ttf", 72)
         body_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 48)
 
-        # Draw text
+        # Calculate max text width
+        if output_size == (1200, 628):
+            max_text_width = 564
+        else:
+            shortest_side = min(out_w, out_h)
+            max_text_width = int(shortest_side * 0.8)
+
+        # Center-align headline with wrapping
         if headline:
-            draw.text((50, 100), headline, font=headline_font, fill="white")
+            lines = wrap_text(headline, headline_font, draw, max_text_width)
+            y = 100
+            for line in lines:
+                w, h = draw.textbbox((0, 0), line, font=headline_font)[2:]
+                x = (out_w - w) // 2
+                draw.text((x, y), line, font=headline_font, fill="white")
+                y += h + 10
+        # Center-align subtitle with wrapping
         if subtitle:
-            draw.text((50, 200), subtitle, font=body_font, fill="white")
+            lines = wrap_text(subtitle, body_font, draw, max_text_width)
+            y = 200
+            for line in lines:
+                w, h = draw.textbbox((0, 0), line, font=body_font)[2:]
+                x = (out_w - w) // 2
+                draw.text((x, y), line, font=body_font, fill="white")
+                y += h + 10
+        # Disclaimer alignment with wrapping
         if disclaimer:
-            draw.text((50, output_size[1] - 100), disclaimer, font=body_font, fill="white")
+            lines = wrap_text(disclaimer, body_font, draw, max_text_width)
+            total_height = sum([draw.textbbox((0, 0), line, font=body_font)[3] for line in lines]) + (len(lines)-1)*10
+            y = out_h - 100 - total_height + 10  # Adjust so last line is at -100
+            for idx, line in enumerate(lines):
+                w, h = draw.textbbox((0, 0), line, font=body_font)[2:]
+                if output_size == (1200, 628):
+                    # Right-align
+                    x = out_w - w - 50
+                else:
+                    # Center-align
+                    x = (out_w - w) // 2
+                draw.text((x, y), line, font=body_font, fill="white")
+                y += h + 10
 
         # Combine all layers
         result = Image.alpha_composite(cropped.convert("RGBA"), overlay)
