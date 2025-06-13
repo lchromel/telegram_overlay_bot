@@ -82,9 +82,9 @@ def process_image(image_path, headline, subtitle, disclaimer):
         # Helper to get line spacing for each block type
         def get_line_spacing(font, block_type):
             if block_type == 'headline':
-                return int(font.size * 0.9)
+                return int(font.size * 0.15)
             elif block_type == 'subheadline':
-                return int(font.size * 1.1)
+                return int(font.size * 0.2)
             else:
                 return 10  # default for disclaimer
 
@@ -123,12 +123,14 @@ def process_image(image_path, headline, subtitle, disclaimer):
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         elif output_size == (1200, 628):
             y = 40
+            block_x = 40
+            block_width = 564
             if headline:
                 lines = wrap_text(headline, headline_font, draw, max_text_width)
                 line_spacing = int(headline_font.size * 0.15)
                 for idx, line in enumerate(lines):
                     w, h = draw.textbbox((0, 0), line, font=headline_font)[2:]
-                    x = 40
+                    x = block_x + (block_width - w) // 2
                     draw.text((x, y), line, font=headline_font, fill="white")
                     if idx < len(lines) - 1:
                         y += h + line_spacing
@@ -140,7 +142,7 @@ def process_image(image_path, headline, subtitle, disclaimer):
                 line_spacing = int(subheadline_font.size * 0.2)
                 for idx, line in enumerate(lines):
                     w, h = draw.textbbox((0, 0), line, font=subheadline_font)[2:]
-                    x = 40
+                    x = block_x + (block_width - w) // 2
                     draw.text((x, y), line, font=subheadline_font, fill="white")
                     if idx < len(lines) - 1:
                         y += h + line_spacing
