@@ -151,11 +151,14 @@ def process_image(image_path, headline, subtitle, disclaimer):
                 y += 28
             if disclaimer:
                 lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
+                # Calculate total height of disclaimer block
+                total_height = sum([draw.textbbox((0, 0), line, font=disclaimer_font)[3] for line in lines]) + (len(lines)-1)*10
+                y_disclaimer = out_h - 40 - total_height
                 for line in lines:
                     w, h = draw.textbbox((0, 0), line, font=disclaimer_font)[2:]
-                    x = out_w - w - 50
-                    draw.text((x, y), line, font=disclaimer_font, fill="white")
-                    y += h + 10
+                    x = out_w - w - 40
+                    draw.text((x, y_disclaimer), line, font=disclaimer_font, fill="white")
+                    y_disclaimer += h + 10
         else:
             # Center-align headline with wrapping
             if headline:
