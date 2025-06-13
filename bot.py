@@ -53,8 +53,7 @@ def process_image(image_path, headline, subtitle, disclaimer):
         return output_path
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Пришли картинку, а затем текст в формате:
-Заголовок | Подзаголовок | Дисклеймер")
+    await update.message.reply_text("👋 Пришли картинку, а затем текст в формате:\nЗаголовок | Подзаголовок | Дисклеймер")
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text[update.message.from_user.id] = update.message.text.split("|")
