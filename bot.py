@@ -79,7 +79,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.remove(result_path)
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token("YOUR_TELEGRAM_BOT_TOKEN").build()
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN environment variable not set.")
+    app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
