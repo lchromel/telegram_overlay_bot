@@ -79,54 +79,73 @@ def process_image(image_path, headline, subtitle, disclaimer):
             shortest_side = min(out_w, out_h)
             max_text_width = int(shortest_side * 0.8)
 
+        # Helper to get line spacing for each block type
+        def get_line_spacing(font, block_type):
+            if block_type == 'headline':
+                return int(font.size * 0.9)
+            elif block_type == 'subheadline':
+                return int(font.size * 1.1)
+            else:
+                return 10  # default for disclaimer
+
         # 1200x1200 and 1200x1500: anchor all text blocks to the bottom with 24px spacing between blocks, order: disclaimer, subheadline, headline
         if output_size in [(1200, 1200), (1200, 1500)]:
             blocks = []
             if disclaimer:
                 disclaimer_lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
-                blocks.append((disclaimer_lines, disclaimer_font))
+                blocks.append((disclaimer_lines, disclaimer_font, 'disclaimer'))
             if subtitle:
                 subtitle_lines = wrap_text(subtitle, subheadline_font, draw, max_text_width)
-                blocks.append((subtitle_lines, subheadline_font))
+                blocks.append((subtitle_lines, subheadline_font, 'subheadline'))
             if headline:
                 headline_lines = wrap_text(headline, headline_font, draw, max_text_width)
-                blocks.append((headline_lines, headline_font))
+                blocks.append((headline_lines, headline_font, 'headline'))
             # Calculate total height of all blocks (including 24px spacing between blocks)
             block_heights = []
-            for lines, font in blocks:
-                block_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*10
+            for lines, font, block_type in blocks:
+                line_spacing = get_line_spacing(font, block_type)
+                block_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*line_spacing
                 block_heights.append(block_height)
             total_blocks_height = sum(block_heights) + (len(blocks)-1)*24
             # Start y so the whole stack fits above the bottom margin
             y = out_h - 50 - total_blocks_height  # 50px bottom margin
-            for (lines, font), block_height in zip(blocks, block_heights):
-                for line in lines:
+            for (lines, font, block_type), block_height in zip(blocks, block_heights):
+                line_spacing = get_line_spacing(font, block_type)
+                for idx, line in enumerate(lines):
                     w, h = draw.textbbox((0, 0), line, font=font)[2:]
                     x = (out_w - w) // 2
                     draw.text((x, y), line, font=font, fill="white")
-                    y += h + 10
-                y -= 10  # Remove last line spacing
+                    if idx < len(lines) - 1:
+                        y += h + line_spacing
+                    else:
+                        y += h
                 y += 24  # 24px block spacing
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         elif output_size == (1200, 628):
             y = 40
             if headline:
                 lines = wrap_text(headline, headline_font, draw, max_text_width)
-                for line in lines:
+                line_spacing = int(headline_font.size * 0.9)
+                for idx, line in enumerate(lines):
                     w, h = draw.textbbox((0, 0), line, font=headline_font)[2:]
                     x = (out_w - w) // 2
                     draw.text((x, y), line, font=headline_font, fill="white")
-                    y += h + 10
-                y -= 10
+                    if idx < len(lines) - 1:
+                        y += h + line_spacing
+                    else:
+                        y += h
                 y += 28
             if subtitle:
                 lines = wrap_text(subtitle, subheadline_font, draw, max_text_width)
-                for line in lines:
+                line_spacing = int(subheadline_font.size * 1.1)
+                for idx, line in enumerate(lines):
                     w, h = draw.textbbox((0, 0), line, font=subheadline_font)[2:]
                     x = (out_w - w) // 2
                     draw.text((x, y), line, font=subheadline_font, fill="white")
-                    y += h + 10
-                y -= 10
+                    if idx < len(lines) - 1:
+                        y += h + line_spacing
+                    else:
+                        y += h
                 y += 28
             if disclaimer:
                 lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
@@ -140,20 +159,28 @@ def process_image(image_path, headline, subtitle, disclaimer):
             if headline:
                 lines = wrap_text(headline, headline_font, draw, max_text_width)
                 y = 100
-                for line in lines:
+                line_spacing = int(headline_font.size * 0.9)
+                for idx, line in enumerate(lines):
                     w, h = draw.textbbox((0, 0), line, font=headline_font)[2:]
                     x = (out_w - w) // 2
                     draw.text((x, y), line, font=headline_font, fill="white")
-                    y += h + 10
+                    if idx < len(lines) - 1:
+                        y += h + line_spacing
+                    else:
+                        y += h
             # Center-align subtitle with wrapping
             if subtitle:
                 lines = wrap_text(subtitle, subheadline_font, draw, max_text_width)
                 y = 200
-                for line in lines:
+                line_spacing = int(subheadline_font.size * 1.1)
+                for idx, line in enumerate(lines):
                     w, h = draw.textbbox((0, 0), line, font=subheadline_font)[2:]
                     x = (out_w - w) // 2
                     draw.text((x, y), line, font=subheadline_font, fill="white")
-                    y += h + 10
+                    if idx < len(lines) - 1:
+                        y += h + line_spacing
+                    else:
+                        y += h
             # Disclaimer alignment with wrapping
             if disclaimer:
                 lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
