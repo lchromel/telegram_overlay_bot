@@ -58,9 +58,19 @@ def process_image(image_path, headline, subtitle, disclaimer):
         text_layer = Image.new("RGBA", output_size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(text_layer)
         
-        # Load fonts
-        headline_font = ImageFont.truetype("Fonts/YangoGroupHeadline-HeavyArabic.ttf", 72)
-        body_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 48)
+        # Set font sizes for each block and format
+        if output_size in [(1200, 1200), (1200, 1500)]:
+            headline_font = ImageFont.truetype("Fonts/YangoGroupHeadline-HeavyArabic.ttf", 124)
+            subheadline_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 48)
+            disclaimer_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 14)
+        elif output_size == (1200, 628):
+            headline_font = ImageFont.truetype("Fonts/YangoGroupHeadline-HeavyArabic.ttf", 92)
+            subheadline_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 32)
+            disclaimer_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 12)
+        else:
+            headline_font = ImageFont.truetype("Fonts/YangoGroupHeadline-HeavyArabic.ttf", 72)
+            subheadline_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 48)
+            disclaimer_font = ImageFont.truetype("Fonts/YangoGroupText-Medium.ttf", 48)
 
         # Calculate max text width
         if output_size == (1200, 628):
@@ -73,26 +83,30 @@ def process_image(image_path, headline, subtitle, disclaimer):
         if output_size in [(1200, 1200), (1200, 1500)]:
             blocks = []
             if disclaimer:
-                disclaimer_lines = wrap_text(disclaimer, body_font, draw, max_text_width)
-                blocks.append((disclaimer_lines, body_font))
+                disclaimer_lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
+                blocks.append((disclaimer_lines, disclaimer_font))
             if subtitle:
-                subtitle_lines = wrap_text(subtitle, body_font, draw, max_text_width)
-                blocks.append((subtitle_lines, body_font))
+                subtitle_lines = wrap_text(subtitle, subheadline_font, draw, max_text_width)
+                blocks.append((subtitle_lines, subheadline_font))
             if headline:
                 headline_lines = wrap_text(headline, headline_font, draw, max_text_width)
                 blocks.append((headline_lines, headline_font))
-            # Draw from bottom up: disclaimer, subtitle, headline
-            y = out_h - 50  # 50px bottom margin
+            # Calculate total height of all blocks (including 24px spacing between blocks)
+            block_heights = []
             for lines, font in blocks:
                 block_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*10
-                y -= block_height
+                block_heights.append(block_height)
+            total_blocks_height = sum(block_heights) + (len(blocks)-1)*24
+            # Start y so the whole stack fits above the bottom margin
+            y = out_h - 50 - total_blocks_height  # 50px bottom margin
+            for (lines, font), block_height in zip(blocks, block_heights):
                 for line in lines:
                     w, h = draw.textbbox((0, 0), line, font=font)[2:]
                     x = (out_w - w) // 2
                     draw.text((x, y), line, font=font, fill="white")
                     y += h + 10
                 y -= 10  # Remove last line spacing
-                y -= 24  # 24px block spacing
+                y += 24  # 24px block spacing
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         elif output_size == (1200, 628):
             y = 40
@@ -106,20 +120,20 @@ def process_image(image_path, headline, subtitle, disclaimer):
                 y -= 10
                 y += 28
             if subtitle:
-                lines = wrap_text(subtitle, body_font, draw, max_text_width)
+                lines = wrap_text(subtitle, subheadline_font, draw, max_text_width)
                 for line in lines:
-                    w, h = draw.textbbox((0, 0), line, font=body_font)[2:]
+                    w, h = draw.textbbox((0, 0), line, font=subheadline_font)[2:]
                     x = (out_w - w) // 2
-                    draw.text((x, y), line, font=body_font, fill="white")
+                    draw.text((x, y), line, font=subheadline_font, fill="white")
                     y += h + 10
                 y -= 10
                 y += 28
             if disclaimer:
-                lines = wrap_text(disclaimer, body_font, draw, max_text_width)
+                lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
                 for line in lines:
-                    w, h = draw.textbbox((0, 0), line, font=body_font)[2:]
+                    w, h = draw.textbbox((0, 0), line, font=disclaimer_font)[2:]
                     x = out_w - w - 50
-                    draw.text((x, y), line, font=body_font, fill="white")
+                    draw.text((x, y), line, font=disclaimer_font, fill="white")
                     y += h + 10
         else:
             # Center-align headline with wrapping
@@ -133,22 +147,22 @@ def process_image(image_path, headline, subtitle, disclaimer):
                     y += h + 10
             # Center-align subtitle with wrapping
             if subtitle:
-                lines = wrap_text(subtitle, body_font, draw, max_text_width)
+                lines = wrap_text(subtitle, subheadline_font, draw, max_text_width)
                 y = 200
                 for line in lines:
-                    w, h = draw.textbbox((0, 0), line, font=body_font)[2:]
+                    w, h = draw.textbbox((0, 0), line, font=subheadline_font)[2:]
                     x = (out_w - w) // 2
-                    draw.text((x, y), line, font=body_font, fill="white")
+                    draw.text((x, y), line, font=subheadline_font, fill="white")
                     y += h + 10
             # Disclaimer alignment with wrapping
             if disclaimer:
-                lines = wrap_text(disclaimer, body_font, draw, max_text_width)
-                total_height = sum([draw.textbbox((0, 0), line, font=body_font)[3] for line in lines]) + (len(lines)-1)*10
+                lines = wrap_text(disclaimer, disclaimer_font, draw, max_text_width)
+                total_height = sum([draw.textbbox((0, 0), line, font=disclaimer_font)[3] for line in lines]) + (len(lines)-1)*10
                 y = out_h - 100 - total_height + 10  # Adjust so last line is at -100
                 for idx, line in enumerate(lines):
-                    w, h = draw.textbbox((0, 0), line, font=body_font)[2:]
+                    w, h = draw.textbbox((0, 0), line, font=disclaimer_font)[2:]
                     x = (out_w - w) // 2
-                    draw.text((x, y), line, font=body_font, fill="white")
+                    draw.text((x, y), line, font=disclaimer_font, fill="white")
                     y += h + 10
 
         # Combine all layers
