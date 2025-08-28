@@ -266,18 +266,18 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
         from PIL import ImageDraw
         
         # Create a temporary image for the rounded rectangle
-        temp_img = Image.new('RGBA', (bg_width + 8, bg_height + 8), (0, 0, 0, 0))
+        temp_img = Image.new('RGBA', (bg_width + 16, bg_height + 16), (0, 0, 0, 0))
         temp_draw = ImageDraw.Draw(temp_img)
         
         # Draw rounded rectangle
         temp_draw.rounded_rectangle(
-            [0, 0, bg_width + 7, bg_height + 7],
-            radius=4,
+            [0, 0, bg_width + 15, bg_height + 15],
+            radius=12,
             fill=discount_color
         )
         
         # Paste the background onto the main image
-        draw._image.paste(temp_img, (bg_x - 4, bg_y - 4), temp_img)
+        draw._image.paste(temp_img, (bg_x - 8, bg_y - 8), temp_img)
         
         # Draw discount text in black
         draw.text((current_x, y), discount_text, font=font, fill=discount_text_color)
