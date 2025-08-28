@@ -206,6 +206,37 @@ def get_gap(layout, prev_key, next_key, banner_key):
             return gap
     return default
 
+def crop_image_to_size(image, target_width, target_height):
+    """Crop image to target size while maintaining aspect ratio"""
+    img_width, img_height = image.size
+    
+    # Calculate aspect ratios
+    target_ratio = target_width / target_height
+    img_ratio = img_width / img_height
+    
+    if img_ratio > target_ratio:
+        # Image is wider than target, crop width
+        new_width = int(img_height * target_ratio)
+        new_height = img_height
+        left = (img_width - new_width) // 2
+        top = 0
+        right = left + new_width
+        bottom = new_height
+    else:
+        # Image is taller than target, crop height
+        new_width = img_width
+        new_height = int(img_width / target_ratio)
+        left = 0
+        top = (img_height - new_height) // 2
+        right = new_width
+        bottom = top + new_height
+    
+    # Crop the image
+    cropped = image.crop((left, top, right, bottom))
+    
+    # Resize to exact target size
+    return cropped.resize((target_width, target_height), Image.LANCZOS)
+
 def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_overlay=True):
     w, h = bg.size
     draw = ImageDraw.Draw(bg)
@@ -268,22 +299,25 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             if align == "center":
                 lw = text_width(draw, line, font)
                 dx = (max_w - lw) // 2
-                draw.text((x + dx, y), line, font=font, fill=(0, 0, 0, 255))
+                draw.text((x + dx, y), line, font=font, fill=(255, 255, 255, 255))  # White text
             elif align == "right":
                 lw = text_width(draw, line, font)
-                draw.text((x + max_w - lw, y), line, font=font, fill=(0, 0, 0, 255))
+                draw.text((x + max_w - lw, y), line, font=font, fill=(255, 255, 255, 255))  # White text
             else:
-                draw.text((x, y), line, font=font, fill=(0, 0, 0, 255))
+                draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))  # White text
             y += lh
         if i < len(gaps):
             y += gaps[i]
 
-    # overlay
+    # overlay - use layout-specific overlay folder
     if apply_overlay:
-        ov_path = os.path.join("Overlay", f"{banner_key}.png")
+        ov_path = os.path.join("Overlay", layout_key, f"{banner_key}.png")
         if os.path.exists(ov_path):
             ov = Image.open(ov_path).convert("RGBA").resize((w, h))
             bg = Image.alpha_composite(bg.convert("RGBA"), ov)
+            logger.info(f"Applied overlay: {ov_path}")
+        else:
+            logger.warning(f"Overlay not found: {ov_path}")
     return bg
 
 # Telegram bot handlers
@@ -458,7 +492,7 @@ async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Open and process the image
         bg = Image.open(io.BytesIO(image_data)).convert("RGBA")
         w, h = SIZES.get(size, (1200, 1200))
-        bg = bg.resize((w, h), Image.LANCZOS)
+        bg = crop_image_to_size(bg, w, h)
         
         # Apply overlay using the selected layout
         out = compose(bg, headline, subheadline, disclaimer, size, layout, apply_overlay=True)
@@ -571,7 +605,7 @@ async def render_image(
             )
         
         w, h = SIZES[banner_size]
-        bg = bg.resize((w, h), Image.LANCZOS)
+        bg = crop_image_to_size(bg, w, h)
         out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay)
         
         out_path = f"result_{uuid.uuid4().hex}.png"
