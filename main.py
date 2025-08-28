@@ -395,7 +395,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         y = 40
         block_x = 40
-        block_width = 400  # Reduced to 400px for smaller text blocks
+        block_width = 540  # Match the working code
         
         # Process main text blocks (headline and subline) first
         main_blocks = [block for block in blocks if block[3] != "disclaimer"]
@@ -406,7 +406,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             
             # Special positioning for subline (subtitle)
             if key == "subline":
-                subtitle_block_width = 380
+                subtitle_block_width = 460
                 subtitle_block_x = 80
                 current_x = subtitle_block_x
                 current_width = subtitle_block_width
@@ -425,23 +425,29 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             if i < len(main_blocks) - 1:
                 y += 28
         
-        # Handle disclaimer separately - positioned at bottom right with 50px margin
+        # Handle disclaimer separately - positioned at bottom right with 40px margin (matching working code)
         if disclaimer_blocks:
             disclaimer_lines, disclaimer_st, disclaimer_font, _ = disclaimer_blocks[0]
-            disclaimer_y = h - 50  # 50px from bottom
+            
+            # Calculate total height of disclaimer block
+            total_height = sum([font.getbbox(line)[3] for line in disclaimer_lines]) + (len(disclaimer_lines)-1)*10
+            disclaimer_y = h - 40 - total_height  # 40px from bottom, matching working code
             
             for line in disclaimer_lines:
                 lw = text_width(draw, line, disclaimer_font)
-                # Right align with 50px margin
-                draw_x = w - 50 - lw
+                # Right align with 40px margin (matching working code)
+                draw_x = w - 40 - lw
                 draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
+                disclaimer_y += disclaimer_font.getbbox(line)[3] + 10
     else:
         # Standard positioning for other sizes
         if banner_key == "1080x1920":
             # Special handling for 1080x1920 - disclaimer positioned separately
             main_blocks = [block for block in blocks if block[3] != "disclaimer"]
             disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
+            
+            # Move text block 50px lower for 1080x1920
+            y += 50
             
             # Process main text blocks first
             for i, (lines, st, font, key) in enumerate(main_blocks):
