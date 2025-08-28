@@ -135,6 +135,26 @@ def normalize_text(text: str) -> str:
 def text_width(draw, text, font):
     return draw.textbbox((0, 0), text, font=font)[2]
 
+def detect_discount(text):
+    """Detect discount patterns in text"""
+    import re
+    
+    # Common discount patterns
+    patterns = [
+        r'\b\d+%?\s*(?:скидка|discount|off|%)\b',  # 20% скидка, 50% off, etc.
+        r'\b(?:скидка|discount|off)\s*\d+%?\b',    # скидка 20%, discount 50%, etc.
+        r'\b\d+\s*руб?\b',                         # 100 руб, 500 рублей, etc.
+        r'\b\d+\s*(?:₽|₸|$|€)\b',                  # 100₽, 500₸, $50, etc.
+        r'\b(?:бесплатно|free)\b',                 # бесплатно, free
+        r'\b(?:подарок|gift)\b',                   # подарок, gift
+        r'\b(?:акция|sale)\b',                     # акция, sale
+    ]
+    
+    for pattern in patterns:
+        matches = re.finditer(pattern, text, re.IGNORECASE)
+        for match in matches:
+            yield match.start(), match.end(), match.group()
+
 def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
     text = normalize_text(text)
     words = text.split()
@@ -207,6 +227,69 @@ def get_gap(layout, prev_key, next_key, banner_key):
         if prev_key == a and next_key == b and (only_size is None or only_size == banner_key):
             return gap
     return default
+
+def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color=(227, 255, 116), discount_text_color=(0, 0, 0)):
+    """Draw text with discount highlighting"""
+    if not text.strip():
+        return y
+    
+    # Detect discounts in the text
+    discounts = list(detect_discount(text))
+    
+    if not discounts:
+        # No discounts found, draw normal text
+        draw.text((x, y), text, font=font, fill=fill_color)
+        return y + font.getbbox(text)[3]
+    
+    # Draw text with discount highlighting
+    current_x = x
+    last_end = 0
+    
+    for start, end, discount_text in discounts:
+        # Draw text before discount
+        if start > last_end:
+            before_text = text[last_end:start]
+            draw.text((current_x, y), before_text, font=font, fill=fill_color)
+            current_x += text_width(draw, before_text, font)
+        
+        # Calculate discount background dimensions
+        discount_width = text_width(draw, discount_text, font)
+        discount_height = font.getbbox(discount_text)[3]
+        
+        # Draw discount background (rounded rectangle)
+        bg_x = current_x
+        bg_y = y
+        bg_width = discount_width
+        bg_height = discount_height
+        
+        # Create rounded rectangle background
+        from PIL import ImageDraw
+        
+        # Create a temporary image for the rounded rectangle
+        temp_img = Image.new('RGBA', (bg_width + 8, bg_height + 8), (0, 0, 0, 0))
+        temp_draw = ImageDraw.Draw(temp_img)
+        
+        # Draw rounded rectangle
+        temp_draw.rounded_rectangle(
+            [0, 0, bg_width + 7, bg_height + 7],
+            radius=4,
+            fill=discount_color
+        )
+        
+        # Paste the background onto the main image
+        draw._image.paste(temp_img, (bg_x - 4, bg_y - 4), temp_img)
+        
+        # Draw discount text in black
+        draw.text((current_x, y), discount_text, font=font, fill=discount_text_color)
+        current_x += discount_width
+        last_end = end
+    
+    # Draw remaining text after last discount
+    if last_end < len(text):
+        remaining_text = text[last_end:]
+        draw.text((current_x, y), remaining_text, font=font, fill=fill_color)
+    
+    return y + font.getbbox(text)[3]
 
 def crop_image_to_size(image, target_width, target_height):
     """Crop image to target size while maintaining aspect ratio"""
@@ -327,7 +410,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 lw = text_width(draw, line, font)
                 # Center within the block
                 draw_x = current_x + (current_width - lw) // 2
-                draw.text((draw_x, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
                 y += lh
             
             # Add spacing between blocks (except after the last block)
@@ -347,12 +430,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 if align == "center":
                     lw = text_width(draw, line, font)
                     dx = (max_w - lw) // 2
-                    draw.text((x + dx, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                    draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
                 elif align == "right":
                     lw = text_width(draw, line, font)
-                    draw.text((x + max_w - lw, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                    draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
                 else:
-                    draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                    draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
                 y += lh
             if i < len(gaps):
                 y += gaps[i]
