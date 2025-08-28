@@ -1,3 +1,7 @@
 fastapi
 uvicorn
 python-telegram-bot==20.7
+Pillow
+arabic-reshaper
+python-bidi
+python-multipart
