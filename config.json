@@ -26,7 +26,7 @@
         "1200x628": 92,
         "1080x1920": 111
       },
-      "line_height": 1.15,
+      "line_height": 0.86,
       "align": "center",
       "max_lines": 3,
       "ellipsis": true
