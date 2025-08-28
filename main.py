@@ -63,6 +63,11 @@ async def startup_event():
         return
     
     try:
+        # Initialize the application first
+        logger.info("Initializing Telegram application...")
+        await application.initialize()
+        logger.info("✅ Telegram application initialized successfully")
+        
         # Get the webhook URL
         webhook_url = os.environ.get("WEBHOOK_URL")
         if not webhook_url:
@@ -85,6 +90,17 @@ async def startup_event():
         
     except Exception as e:
         logger.error(f"Failed to set up webhook on startup: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up on application shutdown"""
+    if application:
+        try:
+            logger.info("Shutting down Telegram application...")
+            await application.shutdown()
+            logger.info("✅ Telegram application shut down successfully")
+        except Exception as e:
+            logger.error(f"Error shutting down Telegram application: {e}")
 
 def load_font(path, size):
     try:
