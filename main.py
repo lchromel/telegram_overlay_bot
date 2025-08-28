@@ -127,9 +127,11 @@ def is_rtl_text(s: str) -> bool:
     return any('\u0590' <= ch <= '\u08FF' for ch in s)  # Hebrew+Arabic ranges
 
 def normalize_text(text: str) -> str:
+    logger.info(f"normalize_text called with: '{text}'")
     if any('\u0600' <= ch <= '\u06FF' for ch in text):  # Arabic
         text = arabic_reshaper.reshape(text)
         text = get_display(text)
+        logger.info(f"normalize_text after Arabic processing: '{text}'")
     return text
 
 def text_width(draw, text, font):
@@ -138,6 +140,8 @@ def text_width(draw, text, font):
 def detect_discount(text):
     """Detect discount patterns in text"""
     import re
+    
+    logger.info(f"detect_discount called with text: '{text}'")
     
     # Common discount patterns
     patterns = [
@@ -154,6 +158,7 @@ def detect_discount(text):
     for pattern in patterns:
         matches = re.finditer(pattern, text, re.IGNORECASE)
         for match in matches:
+            logger.info(f"Pattern '{pattern}' matched: '{match.group()}' at positions {match.start()}-{match.end()}")
             yield match.start(), match.end(), match.group()
 
 def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
@@ -231,6 +236,8 @@ def get_gap(layout, prev_key, next_key, banner_key):
 
 def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color=(227, 255, 116), discount_text_color=(0, 0, 0)):
     """Draw text with discount highlighting"""
+    logger.info(f"draw_text_with_highlights called with text: '{text}'")
+    
     if not text.strip():
         return y
     
@@ -276,22 +283,27 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
         bg_width = discount_width
         bg_height = discount_height
         
-        # Create rounded rectangle background
-        from PIL import ImageDraw
-        
-        # Create a temporary image for the rounded rectangle
-        temp_img = Image.new('RGBA', (bg_width + 16, bg_height + 16), (0, 0, 0, 0))
-        temp_draw = ImageDraw.Draw(temp_img)
-        
-        # Draw rounded rectangle
-        temp_draw.rounded_rectangle(
-            [0, 0, bg_width + 15, bg_height + 15],
-            radius=12,
-            fill=discount_color
-        )
-        
-        # Paste the background onto the main image
-        draw._image.paste(temp_img, (bg_x - 8, bg_y - 8), temp_img)
+        # Create simple rectangle background (fallback if rounded rectangle fails)
+        try:
+            # Try rounded rectangle first
+            temp_img = Image.new('RGBA', (bg_width + 16, bg_height + 16), (0, 0, 0, 0))
+            temp_draw = ImageDraw.Draw(temp_img)
+            
+            # Draw rounded rectangle
+            temp_draw.rounded_rectangle(
+                [0, 0, bg_width + 15, bg_height + 15],
+                radius=12,
+                fill=discount_color
+            )
+            
+            # Paste the background onto the main image
+            main_image = draw._image if hasattr(draw, '_image') else draw.im
+            main_image.paste(temp_img, (bg_x - 8, bg_y - 8), temp_img)
+            logger.info(f"Successfully drew rounded rectangle for discount: '{discount_text}'")
+        except Exception as e:
+            logger.error(f"Failed to draw rounded rectangle: {e}, falling back to simple rectangle")
+            # Fallback to simple rectangle
+            draw.rectangle([bg_x - 8, bg_y - 8, bg_x + bg_width + 8, bg_y + bg_height + 8], fill=discount_color)
         
         # Draw discount text in black
         draw.text((current_x, y), discount_text, font=font, fill=discount_text_color)
