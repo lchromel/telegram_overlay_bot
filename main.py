@@ -24,10 +24,12 @@ WAITING_FOR_IMAGE = 1
 WAITING_FOR_TEXT = 2
 WAITING_FOR_SIZE = 3
 WAITING_FOR_LAYOUT = 4
+WAITING_FOR_ANOTHER_BANNER = 5
 
 # Available sizes and layouts
 AVAILABLE_SIZES = ["1200x1200", "1200x1500", "1200x628", "1080x1920"]
 AVAILABLE_LAYOUTS = ["Yango_photo", "Yango_pro_app", "Yango_pro_photo", "Yango_pro_Red", "Yango_Red"]
+AVAILABLE_LANGUAGES = ["Русский", "English", "العربية", "Türkçe", "Қазақша"]
 
 # Load configuration
 try:
@@ -301,28 +303,59 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         x = pad["left"]
         y = h - pad["bottom"] - total_h
 
-    # draw text on top of overlay
-    for i, (lines, st, font, key) in enumerate(blocks):
-        lh = line_height_px(font, st["line_height"])
-        align = st.get("align", "left")
-        # auto right align if RTL text and layout isn't explicitly left
-        join_text = " ".join(lines)
-        if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
-            align = "right"
-        for line in lines:
-            # compute x by align
-            if align == "center":
-                lw = text_width(draw, line, font)
-                dx = (max_w - lw) // 2
-                draw.text((x + dx, y), line, font=font, fill=(255, 255, 255, 255))  # White text
-            elif align == "right":
-                lw = text_width(draw, line, font)
-                draw.text((x + max_w - lw, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+    # Special handling for 1200x628 size
+    if banner_key == "1200x628":
+        # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
+        y = 40
+        block_x = 40
+        block_width = 540
+        
+        for i, (lines, st, font, key) in enumerate(blocks):
+            lh = line_height_px(font, st["line_height"])
+            
+            # Special positioning for subline (subtitle)
+            if key == "subline":
+                subtitle_block_width = 460
+                subtitle_block_x = 80
+                current_x = subtitle_block_x
+                current_width = subtitle_block_width
             else:
-                draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))  # White text
-            y += lh
-        if i < len(gaps):
-            y += gaps[i]
+                current_x = block_x
+                current_width = block_width
+            
+            for line in lines:
+                lw = text_width(draw, line, font)
+                # Center within the block
+                draw_x = current_x + (current_width - lw) // 2
+                draw.text((draw_x, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                y += lh
+            
+            # Add spacing between blocks (except after the last block)
+            if i < len(blocks) - 1:
+                y += 28
+    else:
+        # Standard positioning for other sizes
+        for i, (lines, st, font, key) in enumerate(blocks):
+            lh = line_height_px(font, st["line_height"])
+            align = st.get("align", "left")
+            # auto right align if RTL text and layout isn't explicitly left
+            join_text = " ".join(lines)
+            if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
+                align = "right"
+            for line in lines:
+                # compute x by align
+                if align == "center":
+                    lw = text_width(draw, line, font)
+                    dx = (max_w - lw) // 2
+                    draw.text((x + dx, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                elif align == "right":
+                    lw = text_width(draw, line, font)
+                    draw.text((x + max_w - lw, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                else:
+                    draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))  # White text
+                y += lh
+            if i < len(gaps):
+                y += gaps[i]
 
     return bg
 
@@ -405,8 +438,10 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ Изображение получено! Теперь введите текст в следующем формате:\n\n"
             "Заголовок\n"
             "Подзаголовок\n"
-            "Дисклеймер\n\n"
-            "Каждый элемент должен быть на новой строке."
+            "Дисклеймер\n"
+            "Язык\n\n"
+            "Каждый элемент должен быть на новой строке.\n"
+            "Доступные языки: Русский, English, العربية, Türkçe, Қазақша"
         )
         return WAITING_FOR_TEXT
     except Exception as e:
@@ -415,36 +450,48 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle text input (headline, subheadline, disclaimer)"""
+    """Handle text input (headline, subheadline, disclaimer, language)"""
     try:
         text_lines = update.message.text.strip().split('\n')
         
-        if len(text_lines) < 3:
+        if len(text_lines) < 4:
             await update.message.reply_text(
-                "❌ Пожалуйста, введите все три элемента:\n"
+                "❌ Пожалуйста, введите все четыре элемента:\n"
                 "1. Заголовок\n"
                 "2. Подзаголовок\n"
-                "3. Дисклеймер\n\n"
-                "Каждый элемент должен быть на новой строке."
+                "3. Дисклеймер\n"
+                "4. Язык\n\n"
+                "Каждый элемент должен быть на новой строке.\n"
+                "Доступные языки: Русский, English, العربية, Türkçe, Қазақша"
             )
             return WAITING_FOR_TEXT
         
-        # Extract the three text elements
+        # Extract the four text elements
         headline = text_lines[0].strip()
         subheadline = text_lines[1].strip()
         disclaimer = text_lines[2].strip()
+        language = text_lines[3].strip()
+        
+        # Validate language
+        if language not in AVAILABLE_LANGUAGES:
+            await update.message.reply_text(
+                "❌ Неверный язык. Пожалуйста, используйте один из доступных языков:\n"
+                "Русский, English, العربية, Türkçe, Қазақша"
+            )
+            return WAITING_FOR_TEXT
         
         # Store in context
         context.user_data['headline'] = headline
         context.user_data['subheadline'] = subheadline
         context.user_data['disclaimer'] = disclaimer
+        context.user_data['language'] = language
         
         # Create size keyboard
         size_keyboard = [[size] for size in AVAILABLE_SIZES]
         reply_markup = ReplyKeyboardMarkup(size_keyboard, one_time_keyboard=True, resize_keyboard=True)
         
         await update.message.reply_text(
-            "✅ Текст сохранен! Теперь выберите размер баннера:",
+            f"✅ Текст и язык ({language}) сохранены! Теперь выберите размер баннера:",
             reply_markup=reply_markup
         )
         return WAITING_FOR_SIZE
@@ -453,6 +500,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error handling text input: {e}")
         await update.message.reply_text("❌ Ошибка при обработке текста. Попробуйте еще раз.")
         return ConversationHandler.END
+
+
 
 async def handle_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle size selection"""
@@ -493,6 +542,7 @@ async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         headline = context.user_data.get('headline', '')
         subheadline = context.user_data.get('subheadline', '')
         disclaimer = context.user_data.get('disclaimer', '')
+        language = context.user_data.get('language', 'Русский')
         size = context.user_data['size']
         
         # Open and process the image
@@ -510,15 +560,42 @@ async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(out_path, 'rb') as photo:
             await update.message.reply_photo(
                 photo=photo,
-                caption=f"✅ Ваш баннер готов!\n\n📏 Размер: {size}\n🎨 Макет: {layout}\n\nИспользуйте /start для создания нового баннера."
+                caption=f"✅ Ваш баннер готов!\n\n📏 Размер: {size}\n🎨 Макет: {layout}\n🌍 Язык: {language}\n\nХотите создать еще один баннер с тем же изображением и текстом?"
             )
         
-        # Clean up
+        # Clean up the temporary file
         os.remove(out_path)
+        
+        # Keep the image and text data, but clear size and layout
+        image_data = context.user_data['image_data']
+        headline = context.user_data['headline']
+        subheadline = context.user_data['subheadline']
+        disclaimer = context.user_data['disclaimer']
+        language = context.user_data['language']
+        
+        # Clear context but keep essential data
         context.user_data.clear()
+        context.user_data['image_data'] = image_data
+        context.user_data['headline'] = headline
+        context.user_data['subheadline'] = subheadline
+        context.user_data['disclaimer'] = disclaimer
+        context.user_data['language'] = language
+        
+        # Create keyboard for creating another banner
+        keyboard = [
+            ["🔄 Создать еще один баннер"],
+            ["🆕 Начать заново"],
+            ["❌ Завершить"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            "Выберите действие:",
+            reply_markup=reply_markup
+        )
         
         logger.info(f"Banner created successfully for user {update.effective_user.id}")
-        return ConversationHandler.END
+        return WAITING_FOR_ANOTHER_BANNER
         
     except Exception as e:
         logger.error(f"Error creating banner: {e}")
@@ -528,6 +605,42 @@ async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         context.user_data.clear()
         return ConversationHandler.END
+
+async def handle_another_banner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the choice to create another banner or start over"""
+    choice = update.message.text
+    
+    if choice == "🔄 Создать еще один баннер":
+        # Create size keyboard
+        size_keyboard = [[size] for size in AVAILABLE_SIZES]
+        reply_markup = ReplyKeyboardMarkup(size_keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            "Выберите размер для нового баннера:",
+            reply_markup=reply_markup
+        )
+        return WAITING_FOR_SIZE
+        
+    elif choice == "🆕 Начать заново":
+        await update.message.reply_text(
+            "Хорошо! Отправьте новое изображение для создания баннера.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return WAITING_FOR_IMAGE
+        
+    elif choice == "❌ Завершить":
+        await update.message.reply_text(
+            "Спасибо за использование бота! Используйте /start для создания новых баннеров.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+        
+    else:
+        await update.message.reply_text(
+            "Пожалуйста, выберите один из предложенных вариантов."
+        )
+        return WAITING_FOR_ANOTHER_BANNER
 
 # Register Telegram handlers only if application was built successfully
 if application:
@@ -539,6 +652,7 @@ if application:
             WAITING_FOR_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)],
             WAITING_FOR_SIZE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_size)],
             WAITING_FOR_LAYOUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_layout)],
+            WAITING_FOR_ANOTHER_BANNER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_another_banner)],
         },
         fallbacks=[CommandHandler("cancel", cancel), CommandHandler("help", help_command)],
     )
