@@ -252,7 +252,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
     
     # Now draw text on top of the overlay
     draw = ImageDraw.Draw(bg)
-    layout = LAYOUTS.get(layout_key, LAYOUTS["L1_basic"])
+    layout = LAYOUTS.get(layout_key, LAYOUTS["Yango_photo"])
     pad = layout["padding"]
     max_w = w - pad["left"] - pad["right"]
 
@@ -596,7 +596,7 @@ async def render_image(
     subline: str = Form(""),
     disclaimer: str = Form(""),
     banner_size: str = Form("1200x1200"),
-    layout_type: str = Form("L1_basic"),
+    layout_type: str = Form("Yango_photo"),
     apply_overlay: bool = Form(True)
 ):
     """Render image with text overlay"""
