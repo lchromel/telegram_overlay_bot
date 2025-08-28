@@ -143,6 +143,10 @@ def detect_discount(text):
     
     logger.info(f"detect_discount called with text: '{text}'")
     
+    # Test with a simple case first
+    if "30%" in text:
+        logger.info(f"Found '30%' in text: '{text}'")
+    
     # Common discount patterns
     patterns = [
         r'\b\d+%?\s*(?:скидка|discount|off|%)\b',  # 20% скидка, 50% off, etc.
@@ -376,8 +380,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             st, font = resolve_style("headline", layout_key, banner_key)
             lines = wrap_with_limits(draw, headline, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
             logger.info(f"1200x628 headline wrapped into lines: {lines}")
+            logger.info(f"Original headline: '{headline}'")
             line_spacing = int(font.size * 0.15)
             for idx, line in enumerate(lines):
+                logger.info(f"Processing line {idx}: '{line}'")
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                 draw_x = block_x + (block_width - lw) // 2
                 draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
