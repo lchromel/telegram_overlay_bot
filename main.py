@@ -233,11 +233,21 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     if not text.strip():
         return y
     
+    # Convert RGBA colors to RGB for PIL compatibility
+    if len(fill_color) == 4:
+        fill_color = fill_color[:3]
+    if len(discount_color) == 4:
+        discount_color = discount_color[:3]
+    if len(discount_text_color) == 4:
+        discount_text_color = discount_text_color[:3]
+    
     # Detect discounts in the text
     discounts = list(detect_discount(text))
     
     if discounts:
-        logger.info(f"Found discounts in text: {discounts}")
+        logger.info(f"Found discounts in text '{text}': {discounts}")
+    else:
+        logger.info(f"No discounts found in text: '{text}'")
     
     if not discounts:
         # No discounts found, draw normal text
