@@ -6,8 +6,8 @@ import math
 import uuid
 from fastapi import FastAPI, Request, File, UploadFile, Form
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -18,6 +18,16 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Conversation states
+WAITING_FOR_IMAGE = 1
+WAITING_FOR_TEXT = 2
+WAITING_FOR_SIZE = 3
+WAITING_FOR_LAYOUT = 4
+
+# Available sizes and layouts
+AVAILABLE_SIZES = ["1200x1200", "1200x1500", "1200x628", "1080x1920"]
+AVAILABLE_LAYOUTS = ["Yango_photo", "Yango_pro_app", "Yango_pro_photo", "Yango_pro_Red", "Yango_Red"]
 
 # Load configuration
 try:
@@ -281,19 +291,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command"""
     logger.info(f"Received /start command from user {update.effective_user.id}")
     try:
-        welcome_message = """Привет! ✅ Я работаю на Railway через webhook
+        welcome_message = """Привет! 🎨 Я помогу создать красивый баннер с текстом.
 
-Доступные команды:
-/start - Показать это сообщение
-/help - Показать справку по использованию
-/layouts - Показать доступные размеры и макеты
+Давайте создадим баннер пошагово! 
 
-Для обработки изображений используйте веб-интерфейс или API."""
+📸 Сначала отправьте мне изображение, которое будет основой для баннера."""
+        
         await update.message.reply_text(welcome_message)
         logger.info("Start command response sent successfully")
+        return WAITING_FOR_IMAGE
     except Exception as e:
         logger.error(f"Error in start command: {e}")
         await update.message.reply_text("Произошла ошибка при обработке команды.")
+        return ConversationHandler.END
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command"""
@@ -301,46 +311,200 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         help_text = """📋 Справка по использованию бота:
 
-🖼️ Доступные размеры изображений:
+🎨 Создание баннера:
+1. Отправьте изображение
+2. Введите заголовок
+3. Введите подзаголовок
+4. Введите дисклеймер
+5. Выберите размер
+6. Выберите макет
+
+🖼️ Доступные размеры:
 • 1200x1200 (квадрат)
 • 1200x1500 (вертикальный)
 • 1200x628 (горизонтальный)
 • 1080x1920 (сторис)
 
 🎨 Доступные макеты:
-• L1_basic - Базовый (слева внизу)
-• L2_center - По центру
-• L3_top_left - Слева вверху
-• L4_top_right - Справа вверху
-• L5_bottom_right - Справа внизу
-• L6_split_headline - Разделенный заголовок
+• Yango_photo
+• Yango_pro_app
+• Yango_pro_photo
+• Yango_pro_Red
+• Yango_Red
 
-🌐 Веб-интерфейс: /render endpoint
-📡 API: POST /render с параметрами"""
+Команды:
+/start - Начать создание баннера
+/help - Показать эту справку
+/cancel - Отменить текущий процесс"""
         await update.message.reply_text(help_text)
         logger.info("Help command response sent successfully")
     except Exception as e:
         logger.error(f"Error in help command: {e}")
         await update.message.reply_text("Произошла ошибка при обработке команды.")
 
-async def layouts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /layouts command"""
-    logger.info(f"Received /layouts command from user {update.effective_user.id}")
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the conversation"""
+    await update.message.reply_text(
+        "❌ Процесс создания баннера отменен. Используйте /start для начала нового процесса.",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    return ConversationHandler.END
+
+async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle image upload"""
     try:
-        sizes_text = "📏 Доступные размеры:\n" + "\n".join([f"• {size}" for size in SIZES.keys()])
-        layouts_text = "🎨 Доступные макеты:\n" + "\n".join([f"• {layout}" for layout in LAYOUTS.keys()])
+        # Get the largest photo
+        photo = update.message.photo[-1]
+        file = await context.bot.get_file(photo.file_id)
         
-        await update.message.reply_text(f"{sizes_text}\n\n{layouts_text}")
-        logger.info("Layouts command response sent successfully")
+        # Download the image
+        image_data = await file.download_as_bytearray()
+        context.user_data['image_data'] = image_data
+        
+        await update.message.reply_text(
+            "✅ Изображение получено! Теперь введите текст в следующем формате:\n\n"
+            "Заголовок\n"
+            "Подзаголовок\n"
+            "Дисклеймер\n\n"
+            "Каждый элемент должен быть на новой строке."
+        )
+        return WAITING_FOR_TEXT
     except Exception as e:
-        logger.error(f"Error in layouts command: {e}")
-        await update.message.reply_text("Произошла ошибка при обработке команды.")
+        logger.error(f"Error handling image: {e}")
+        await update.message.reply_text("❌ Ошибка при обработке изображения. Попробуйте еще раз.")
+        return ConversationHandler.END
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle text input (headline, subheadline, disclaimer)"""
+    try:
+        text_lines = update.message.text.strip().split('\n')
+        
+        if len(text_lines) < 3:
+            await update.message.reply_text(
+                "❌ Пожалуйста, введите все три элемента:\n"
+                "1. Заголовок\n"
+                "2. Подзаголовок\n"
+                "3. Дисклеймер\n\n"
+                "Каждый элемент должен быть на новой строке."
+            )
+            return WAITING_FOR_TEXT
+        
+        # Extract the three text elements
+        headline = text_lines[0].strip()
+        subheadline = text_lines[1].strip()
+        disclaimer = text_lines[2].strip()
+        
+        # Store in context
+        context.user_data['headline'] = headline
+        context.user_data['subheadline'] = subheadline
+        context.user_data['disclaimer'] = disclaimer
+        
+        # Create size keyboard
+        size_keyboard = [[size] for size in AVAILABLE_SIZES]
+        reply_markup = ReplyKeyboardMarkup(size_keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            "✅ Текст сохранен! Теперь выберите размер баннера:",
+            reply_markup=reply_markup
+        )
+        return WAITING_FOR_SIZE
+        
+    except Exception as e:
+        logger.error(f"Error handling text input: {e}")
+        await update.message.reply_text("❌ Ошибка при обработке текста. Попробуйте еще раз.")
+        return ConversationHandler.END
+
+async def handle_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle size selection"""
+    size = update.message.text
+    if size not in AVAILABLE_SIZES:
+        await update.message.reply_text("❌ Неверный размер. Выберите из предложенных вариантов.")
+        return WAITING_FOR_SIZE
+    
+    context.user_data['size'] = size
+    
+    # Create layout keyboard
+    layout_keyboard = [[layout] for layout in AVAILABLE_LAYOUTS]
+    reply_markup = ReplyKeyboardMarkup(layout_keyboard, one_time_keyboard=True, resize_keyboard=True)
+    
+    await update.message.reply_text(
+        f"✅ Размер {size} выбран! Теперь выберите макет:",
+        reply_markup=reply_markup
+    )
+    return WAITING_FOR_LAYOUT
+
+async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle layout selection and generate banner"""
+    layout = update.message.text
+    if layout not in AVAILABLE_LAYOUTS:
+        await update.message.reply_text("❌ Неверный макет. Выберите из предложенных вариантов.")
+        return WAITING_FOR_LAYOUT
+    
+    context.user_data['layout'] = layout
+    
+    await update.message.reply_text(
+        "🎨 Создаю баннер... Пожалуйста, подождите.",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    
+    try:
+        # Generate the banner
+        image_data = context.user_data['image_data']
+        headline = context.user_data.get('headline', '')
+        subheadline = context.user_data.get('subheadline', '')
+        disclaimer = context.user_data.get('disclaimer', '')
+        size = context.user_data['size']
+        
+        # Open and process the image
+        bg = Image.open(io.BytesIO(image_data)).convert("RGBA")
+        w, h = SIZES.get(size, (1200, 1200))
+        bg = bg.resize((w, h), Image.LANCZOS)
+        
+        # Apply overlay using the selected layout
+        out = compose(bg, headline, subheadline, disclaimer, size, layout, apply_overlay=True)
+        
+        # Save and send the result
+        out_path = f"result_{uuid.uuid4().hex}.png"
+        out.save(out_path, "PNG")
+        
+        with open(out_path, 'rb') as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption=f"✅ Ваш баннер готов!\n\n📏 Размер: {size}\n🎨 Макет: {layout}\n\nИспользуйте /start для создания нового баннера."
+            )
+        
+        # Clean up
+        os.remove(out_path)
+        context.user_data.clear()
+        
+        logger.info(f"Banner created successfully for user {update.effective_user.id}")
+        return ConversationHandler.END
+        
+    except Exception as e:
+        logger.error(f"Error creating banner: {e}")
+        await update.message.reply_text(
+            "❌ Произошла ошибка при создании баннера. Попробуйте еще раз с /start.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
 
 # Register Telegram handlers only if application was built successfully
 if application:
-    application.add_handler(CommandHandler("start", start))
+    # Create conversation handler
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            WAITING_FOR_IMAGE: [MessageHandler(filters.PHOTO, handle_image)],
+            WAITING_FOR_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)],
+            WAITING_FOR_SIZE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_size)],
+            WAITING_FOR_LAYOUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_layout)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel), CommandHandler("help", help_command)],
+    )
+    
+    application.add_handler(conv_handler)
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("layouts", layouts_command))
     logger.info("Telegram handlers registered successfully")
 else:
     logger.error("Cannot register handlers - application is None")
