@@ -147,7 +147,7 @@ def detect_discount(text):
     if "30%" in text:
         logger.info(f"Found '30%' in text: '{text}'")
     
-    # Common discount patterns
+    # Common discount patterns - now including individual parts
     patterns = [
         r'\b\d+%?\s*(?:скидка|discount|off|%)\b',  # 20% скидка, 50% off, etc.
         r'\b(?:скидка|discount|off)\s*\d+%?\b',    # скидка 20%, discount 50%, etc.
@@ -157,6 +157,7 @@ def detect_discount(text):
         r'\b(?:подарок|gift)\b',                   # подарок, gift
         r'\b(?:акция|sale)\b',                     # акция, sale
         r'\b\d+%\b',                               # Just percentage like 30%
+        r'\b(?:скидка|discount|off)\b',            # Just discount words
     ]
     
     for pattern in patterns:
@@ -388,27 +389,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             logger.info(f"Original headline: '{headline}'")
             line_spacing = int(font.size * 0.15)
             
-            # Check if original text contains discounts
-            original_discounts = list(detect_discount(headline))
-            has_discounts = len(original_discounts) > 0
-            logger.info(f"Original headline has discounts: {has_discounts}")
-            
             for idx, line in enumerate(lines):
                 logger.info(f"Processing line {idx}: '{line}'")
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                 draw_x = block_x + (block_width - lw) // 2
-                
-                # If original text had discounts, highlight any line with numbers
-                if has_discounts and any(char.isdigit() for char in line):
-                    logger.info(f"Highlighting line with numbers: '{line}'")
-                    # Draw background
-                    bbox = draw.textbbox((draw_x, y), line, font=font)
-                    draw.rectangle([bbox[0]-8, bbox[1]-8, bbox[2]+8, bbox[3]+8], fill=(227, 255, 116))
-                    # Draw text in black
-                    draw.text((draw_x, y), line, font=font, fill=(0, 0, 0))
-                else:
-                    draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
-                
+                draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
                 if idx < len(lines) - 1:
                     y += lh + line_spacing
                 else:
