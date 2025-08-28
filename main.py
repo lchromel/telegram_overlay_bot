@@ -238,6 +238,37 @@ def get_gap(layout, prev_key, next_key, banner_key):
             return gap
     return default
 
+def draw_text_with_highlights_multi_line(draw, lines, font, x, y, fill_color, original_text="", discount_color=(227, 255, 116), discount_text_color=(0, 0, 0)):
+    """Draw multiple lines with discount highlighting that works across line breaks"""
+    logger.info(f"draw_text_with_highlights_multi_line called with {len(lines)} lines")
+    logger.info(f"Original text: '{original_text}'")
+    
+    if not lines:
+        return y
+    
+    # Check if original text contains discounts
+    original_discounts = list(detect_discount(original_text))
+    has_discounts = len(original_discounts) > 0
+    logger.info(f"Original text has discounts: {has_discounts}")
+    
+    current_y = y
+    for line in lines:
+        if has_discounts and any(char.isdigit() for char in line):
+            logger.info(f"Highlighting line with numbers: '{line}'")
+            # Draw background
+            bbox = draw.textbbox((x, current_y), line, font=font)
+            draw.rectangle([bbox[0]-8, bbox[1]-8, bbox[2]+8, bbox[3]+8], fill=discount_color)
+            # Draw text in black
+            draw.text((x, current_y), line, font=font, fill=discount_text_color)
+        else:
+            # Use regular highlighting for individual line
+            draw_text_with_highlights(draw, line, font, x, current_y, fill_color, discount_color, discount_text_color)
+        
+        # Move to next line
+        current_y += font.getbbox(line)[3] + 5  # Add small spacing between lines
+    
+    return current_y
+
 def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color=(227, 255, 116), discount_text_color=(0, 0, 0)):
     """Draw text with discount highlighting"""
     logger.info(f"draw_text_with_highlights called with text: '{text}'")
@@ -266,14 +297,7 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
         draw.text((x, y), text, font=font, fill=fill_color)
         return y + font.getbbox(text)[3]
     
-    # For debugging: always draw a simple background for any text containing numbers
-    if any(char.isdigit() for char in text):
-        logger.info(f"Drawing debug background for text with numbers: '{text}'")
-        # Draw a simple rectangle background
-        bbox = draw.textbbox((x, y), text, font=font)
-        draw.rectangle([bbox[0]-5, bbox[1]-5, bbox[2]+5, bbox[3]+5], fill=(255, 255, 0))  # Yellow background
-        draw.text((x, y), text, font=font, fill=(0, 0, 0))  # Black text
-        return y + font.getbbox(text)[3]
+
     
     # Draw text with discount highlighting
     current_x = x
@@ -296,17 +320,20 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
         bg_width = discount_width
         bg_height = discount_height
         
-        # Create simple rectangle background (fallback if rounded rectangle fails)
+        # Create rounded rectangle background with correct color and corner radius
         try:
-            # Try rounded rectangle first
+            # Use the correct discount color: #E3FF74 (227, 255, 116)
+            correct_discount_color = (227, 255, 116)
+            
+            # Create a temporary image for the rounded rectangle
             temp_img = Image.new('RGBA', (bg_width + 16, bg_height + 16), (0, 0, 0, 0))
             temp_draw = ImageDraw.Draw(temp_img)
             
-            # Draw rounded rectangle
+            # Draw rounded rectangle with larger radius (16px for better rounding)
             temp_draw.rounded_rectangle(
                 [0, 0, bg_width + 15, bg_height + 15],
-                radius=12,
-                fill=discount_color
+                radius=16,
+                fill=correct_discount_color
             )
             
             # Paste the background onto the main image
@@ -315,8 +342,8 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
             logger.info(f"Successfully drew rounded rectangle for discount: '{discount_text}'")
         except Exception as e:
             logger.error(f"Failed to draw rounded rectangle: {e}, falling back to simple rectangle")
-            # Fallback to simple rectangle
-            draw.rectangle([bg_x - 8, bg_y - 8, bg_x + bg_width + 8, bg_y + bg_height + 8], fill=discount_color)
+            # Fallback to simple rectangle with correct color
+            draw.rectangle([bg_x - 8, bg_y - 8, bg_x + bg_width + 8, bg_y + bg_height + 8], fill=(227, 255, 116))
         
         # Draw discount text in black
         draw.text((current_x, y), discount_text, font=font, fill=discount_text_color)
@@ -391,11 +418,28 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             logger.info(f"1200x628 headline wrapped into lines: {lines}")
             logger.info(f"Original headline: '{headline}'")
             line_spacing = int(font.size * 0.15)
+            
+            # Check if original text contains discounts
+            original_discounts = list(detect_discount(headline))
+            has_discounts = len(original_discounts) > 0
+            logger.info(f"Original headline has discounts: {has_discounts}")
+            
             for idx, line in enumerate(lines):
                 logger.info(f"Processing line {idx}: '{line}'")
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                 draw_x = block_x + (block_width - lw) // 2
-                draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
+                
+                # If original text had discounts, highlight any line with numbers
+                if has_discounts and any(char.isdigit() for char in line):
+                    logger.info(f"Highlighting line with numbers: '{line}'")
+                    # Draw background
+                    bbox = draw.textbbox((draw_x, y), line, font=font)
+                    draw.rectangle([bbox[0]-8, bbox[1]-8, bbox[2]+8, bbox[3]+8], fill=(227, 255, 116))
+                    # Draw text in black
+                    draw.text((draw_x, y), line, font=font, fill=(0, 0, 0))
+                else:
+                    draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
+                
                 if idx < len(lines) - 1:
                     y += lh + line_spacing
                 else:
@@ -502,18 +546,23 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 join_text = " ".join(lines)
                 if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
                     align = "right"
-                for line in lines:
-                    # compute x by align
-                    if align == "center":
-                        lw = text_width(draw, line, font)
-                        dx = (max_w - lw) // 2
-                        draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
-                    elif align == "right":
-                        lw = text_width(draw, line, font)
-                        draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
-                    else:
-                        draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
-                    y += lh
+                
+                # Get original text for this block
+                content_map = {"headline": headline or "", "subline": subline or "", "disclaimer": disclaimer or ""}
+                original_text = content_map.get(key, "")
+                
+                # Use multi-line highlighting
+                if align == "center":
+                    lw = text_width(draw, lines[0] if lines else "", font)
+                    dx = (max_w - lw) // 2
+                    draw_text_with_highlights_multi_line(draw, lines, font, x + dx, y, (255, 255, 255, 255), original_text)
+                elif align == "right":
+                    lw = text_width(draw, lines[0] if lines else "", font)
+                    draw_text_with_highlights_multi_line(draw, lines, font, x + max_w - lw, y, (255, 255, 255, 255), original_text)
+                else:
+                    draw_text_with_highlights_multi_line(draw, lines, font, x, y, (255, 255, 255, 255), original_text)
+                
+                y += lh * len(lines) if lines else 0
                 if i < len(gaps):
                     y += gaps[i]
             
@@ -522,12 +571,13 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 disclaimer_lines, disclaimer_st, disclaimer_font, _ = disclaimer_blocks[0]
                 disclaimer_y = h - 50  # 50px from bottom
                 
-                for line in disclaimer_lines:
-                    lw = text_width(draw, line, disclaimer_font)
-                    # Center align with 50px margin from bottom
-                    draw_x = (w - lw) // 2
-                    draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                    disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
+                # Get original disclaimer text
+                original_disclaimer = disclaimer or ""
+                
+                # Use multi-line highlighting for disclaimer
+                lw = text_width(draw, disclaimer_lines[0] if disclaimer_lines else "", disclaimer_font)
+                draw_x = (w - lw) // 2
+                draw_text_with_highlights_multi_line(draw, disclaimer_lines, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255), original_disclaimer)
         else:
             # Standard positioning for other sizes
             for i, (lines, st, font, key) in enumerate(blocks):
@@ -537,18 +587,22 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 join_text = " ".join(lines)
                 if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
                     align = "right"
-                for line in lines:
-                    # compute x by align
-                    if align == "center":
-                        lw = text_width(draw, line, font)
-                        dx = (max_w - lw) // 2
-                        draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
-                    elif align == "right":
-                        lw = text_width(draw, line, font)
-                        draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
-                    else:
-                        draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
-                    y += lh
+                
+                # Get original text for this block
+                original_text = content_map.get(key, "")
+                
+                # Use multi-line highlighting
+                if align == "center":
+                    lw = text_width(draw, lines[0] if lines else "", font)
+                    dx = (max_w - lw) // 2
+                    draw_text_with_highlights_multi_line(draw, lines, font, x + dx, y, (255, 255, 255, 255), original_text)
+                elif align == "right":
+                    lw = text_width(draw, lines[0] if lines else "", font)
+                    draw_text_with_highlights_multi_line(draw, lines, font, x + max_w - lw, y, (255, 255, 255, 255), original_text)
+                else:
+                    draw_text_with_highlights_multi_line(draw, lines, font, x, y, (255, 255, 255, 255), original_text)
+                
+                y += lh * len(lines) if lines else 0
                 if i < len(gaps):
                     y += gaps[i]
 
