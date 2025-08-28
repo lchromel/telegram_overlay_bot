@@ -21,56 +21,56 @@
     "headline": {
       "font": "Fonts/YangoGroupHeadline-HeavyArabic.ttf",
       "size": {
-        "1200x1200": 120,
-        "1200x1500": 120,
-        "1200x628": 90,
-        "1080x1920": 120
+        "1200x1200": 124,
+        "1200x1500": 124,
+        "1200x628": 92,
+        "1080x1920": 111
       },
-      "line_height": 1.1,
-      "align": "left",
+      "line_height": 1.15,
+      "align": "center",
       "max_lines": 3,
       "ellipsis": true
     },
     "subline": {
       "font": "Fonts/YangoGroupText-Medium.ttf",
       "size": {
-        "1200x1200": 56,
-        "1200x1500": 56,
-        "1200x628": 48,
-        "1080x1920": 60
+        "1200x1200": 48,
+        "1200x1500": 48,
+        "1200x628": 32,
+        "1080x1920": 43
       },
-      "line_height": 1.15,
-      "align": "left",
+      "line_height": 1.2,
+      "align": "center",
       "max_lines": 3,
       "ellipsis": true
     },
     "disclaimer": {
       "font": "Fonts/YangoGroupText-Medium.ttf",
       "size": {
-        "1200x1200": 28,
-        "1200x1500": 28,
-        "1200x628": 26,
-        "1080x1920": 28
+        "1200x1200": 14,
+        "1200x1500": 14,
+        "1200x628": 12,
+        "1080x1920": 13
       },
-      "line_height": 1.2,
-      "align": "left",
+      "line_height": 1.1,
+      "align": "center",
       "max_lines": 4,
       "ellipsis": true
     }
   },
   "layouts": {
-    "L1_basic": {
+    "Yango_photo": {
       "text_stack": [
         "headline",
         "subline",
         "disclaimer"
       ],
-      "anchor": "bottom_left",
+      "anchor": "bottom_center",
       "padding": {
-        "left": 72,
-        "right": 72,
-        "top": 72,
-        "bottom": 72
+        "left": 50,
+        "right": 50,
+        "top": 50,
+        "bottom": 50
       },
       "gap": {
         "default": 24,
@@ -84,111 +84,104 @@
         ]
       }
     },
-    "L2_center": {
+    "Yango_pro_app": {
       "text_stack": [
         "headline",
         "subline",
         "disclaimer"
       ],
-      "anchor": "center",
+      "anchor": "bottom_center",
       "padding": {
-        "left": 96,
-        "right": 96,
-        "top": 96,
-        "bottom": 96
+        "left": 50,
+        "right": 50,
+        "top": 50,
+        "bottom": 50
       },
       "gap": {
-        "default": 24
+        "default": 24,
+        "special": [
+          [
+            "subline",
+            "disclaimer",
+            164,
+            "1080x1920"
+          ]
+        ]
       }
     },
-    "L3_top_left": {
+    "Yango_pro_photo": {
       "text_stack": [
         "headline",
         "subline",
         "disclaimer"
       ],
-      "anchor": "top_left",
+      "anchor": "bottom_center",
       "padding": {
-        "left": 72,
-        "right": 72,
-        "top": 72,
-        "bottom": 72
+        "left": 50,
+        "right": 50,
+        "top": 50,
+        "bottom": 50
       },
       "gap": {
-        "default": 24
+        "default": 24,
+        "special": [
+          [
+            "subline",
+            "disclaimer",
+            164,
+            "1080x1920"
+          ]
+        ]
       }
     },
-    "L4_top_right": {
+    "Yango_pro_Red": {
       "text_stack": [
         "headline",
         "subline",
         "disclaimer"
       ],
-      "anchor": "top_right",
+      "anchor": "bottom_center",
       "padding": {
-        "left": 72,
-        "right": 72,
-        "top": 72,
-        "bottom": 72
+        "left": 50,
+        "right": 50,
+        "top": 50,
+        "bottom": 50
       },
       "gap": {
-        "default": 24
-      },
-      "styleOverrides": {
-        "headline": {
-          "align": "right"
-        },
-        "subline": {
-          "align": "right"
-        },
-        "disclaimer": {
-          "align": "right"
-        }
+        "default": 24,
+        "special": [
+          [
+            "subline",
+            "disclaimer",
+            164,
+            "1080x1920"
+          ]
+        ]
       }
     },
-    "L5_bottom_right": {
+    "Yango_Red": {
       "text_stack": [
         "headline",
         "subline",
         "disclaimer"
       ],
-      "anchor": "bottom_right",
+      "anchor": "bottom_center",
       "padding": {
-        "left": 72,
-        "right": 72,
-        "top": 72,
-        "bottom": 72
+        "left": 50,
+        "right": 50,
+        "top": 50,
+        "bottom": 50
       },
       "gap": {
-        "default": 24
-      },
-      "styleOverrides": {
-        "headline": {
-          "align": "right"
-        },
-        "subline": {
-          "align": "right"
-        },
-        "disclaimer": {
-          "align": "right"
-        }
-      }
-    },
-    "L6_split_headline": {
-      "text_stack": [
-        "headline",
-        "subline",
-        "disclaimer"
-      ],
-      "anchor": "bottom_left",
-      "padding": {
-        "left": 72,
-        "right": 72,
-        "top": 72,
-        "bottom": 72
-      },
-      "gap": {
-        "default": 24
+        "default": 24,
+        "special": [
+          [
+            "subline",
+            "disclaimer",
+            164,
+            "1080x1920"
+          ]
+        ]
       }
     }
   }

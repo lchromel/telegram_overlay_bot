@@ -239,6 +239,18 @@ def crop_image_to_size(image, target_width, target_height):
 
 def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_overlay=True):
     w, h = bg.size
+    
+    # Apply overlay first (before text)
+    if apply_overlay:
+        ov_path = os.path.join("Overlay", layout_key, f"{banner_key}.png")
+        if os.path.exists(ov_path):
+            ov = Image.open(ov_path).convert("RGBA").resize((w, h))
+            bg = Image.alpha_composite(bg.convert("RGBA"), ov)
+            logger.info(f"Applied overlay: {ov_path}")
+        else:
+            logger.warning(f"Overlay not found: {ov_path}")
+    
+    # Now draw text on top of the overlay
     draw = ImageDraw.Draw(bg)
     layout = LAYOUTS.get(layout_key, LAYOUTS["L1_basic"])
     pad = layout["padding"]
@@ -270,6 +282,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
     if anchor == "bottom_left":
         x = pad["left"]
         y = h - pad["bottom"] - total_h
+    elif anchor == "bottom_center":
+        x = (w - max_w) // 2  # Center horizontally
+        y = h - pad["bottom"] - total_h
     elif anchor == "center":
         x = pad["left"]
         y = (h - total_h) // 2
@@ -286,7 +301,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         x = pad["left"]
         y = h - pad["bottom"] - total_h
 
-    # draw
+    # draw text on top of overlay
     for i, (lines, st, font, key) in enumerate(blocks):
         lh = line_height_px(font, st["line_height"])
         align = st.get("align", "left")
@@ -309,15 +324,6 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         if i < len(gaps):
             y += gaps[i]
 
-    # overlay - use layout-specific overlay folder
-    if apply_overlay:
-        ov_path = os.path.join("Overlay", layout_key, f"{banner_key}.png")
-        if os.path.exists(ov_path):
-            ov = Image.open(ov_path).convert("RGBA").resize((w, h))
-            bg = Image.alpha_composite(bg.convert("RGBA"), ov)
-            logger.info(f"Applied overlay: {ov_path}")
-        else:
-            logger.warning(f"Overlay not found: {ov_path}")
     return bg
 
 # Telegram bot handlers
