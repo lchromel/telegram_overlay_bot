@@ -395,21 +395,21 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         y = 40
         block_x = 40
-        block_width = 480  # Updated to 480px
+        block_width = 400  # Reduced to 400px for smaller text blocks
         
-        for i, (lines, st, font, key) in enumerate(blocks):
+        # Process main text blocks (headline and subline) first
+        main_blocks = [block for block in blocks if block[3] != "disclaimer"]
+        disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
+        
+        for i, (lines, st, font, key) in enumerate(main_blocks):
             lh = line_height_px(font, st["line_height"])
             
             # Special positioning for subline (subtitle)
             if key == "subline":
-                subtitle_block_width = 460
+                subtitle_block_width = 380
                 subtitle_block_x = 80
                 current_x = subtitle_block_x
                 current_width = subtitle_block_width
-            elif key == "disclaimer":
-                # Disclaimer aligned to right edge with 50px margin
-                current_x = w - 50 - block_width  # Right edge minus margin minus block width
-                current_width = block_width
             else:
                 current_x = block_x
                 current_width = block_width
@@ -422,31 +422,84 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 y += lh
             
             # Add spacing between blocks (except after the last block)
-            if i < len(blocks) - 1:
+            if i < len(main_blocks) - 1:
                 y += 28
+        
+        # Handle disclaimer separately - positioned at bottom right with 50px margin
+        if disclaimer_blocks:
+            disclaimer_lines, disclaimer_st, disclaimer_font, _ = disclaimer_blocks[0]
+            disclaimer_y = h - 50  # 50px from bottom
+            
+            for line in disclaimer_lines:
+                lw = text_width(draw, line, disclaimer_font)
+                # Right align with 50px margin
+                draw_x = w - 50 - lw
+                draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
+                disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
     else:
         # Standard positioning for other sizes
-        for i, (lines, st, font, key) in enumerate(blocks):
-            lh = line_height_px(font, st["line_height"])
-            align = st.get("align", "left")
-            # auto right align if RTL text and layout isn't explicitly left
-            join_text = " ".join(lines)
-            if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
-                align = "right"
-            for line in lines:
-                # compute x by align
-                if align == "center":
-                    lw = text_width(draw, line, font)
-                    dx = (max_w - lw) // 2
-                    draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
-                elif align == "right":
-                    lw = text_width(draw, line, font)
-                    draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
-                else:
-                    draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
-                y += lh
-            if i < len(gaps):
-                y += gaps[i]
+        if banner_key == "1080x1920":
+            # Special handling for 1080x1920 - disclaimer positioned separately
+            main_blocks = [block for block in blocks if block[3] != "disclaimer"]
+            disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
+            
+            # Process main text blocks first
+            for i, (lines, st, font, key) in enumerate(main_blocks):
+                lh = line_height_px(font, st["line_height"])
+                align = st.get("align", "left")
+                # auto right align if RTL text and layout isn't explicitly left
+                join_text = " ".join(lines)
+                if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
+                    align = "right"
+                for line in lines:
+                    # compute x by align
+                    if align == "center":
+                        lw = text_width(draw, line, font)
+                        dx = (max_w - lw) // 2
+                        draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
+                    elif align == "right":
+                        lw = text_width(draw, line, font)
+                        draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
+                    else:
+                        draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
+                    y += lh
+                if i < len(gaps):
+                    y += gaps[i]
+            
+            # Handle disclaimer separately - positioned at bottom with 50px margin
+            if disclaimer_blocks:
+                disclaimer_lines, disclaimer_st, disclaimer_font, _ = disclaimer_blocks[0]
+                disclaimer_y = h - 50  # 50px from bottom
+                
+                for line in disclaimer_lines:
+                    lw = text_width(draw, line, disclaimer_font)
+                    # Center align with 50px margin from bottom
+                    draw_x = (w - lw) // 2
+                    draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
+        else:
+            # Standard positioning for other sizes
+            for i, (lines, st, font, key) in enumerate(blocks):
+                lh = line_height_px(font, st["line_height"])
+                align = st.get("align", "left")
+                # auto right align if RTL text and layout isn't explicitly left
+                join_text = " ".join(lines)
+                if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
+                    align = "right"
+                for line in lines:
+                    # compute x by align
+                    if align == "center":
+                        lw = text_width(draw, line, font)
+                        dx = (max_w - lw) // 2
+                        draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
+                    elif align == "right":
+                        lw = text_width(draw, line, font)
+                        draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
+                    else:
+                        draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
+                    y += lh
+                if i < len(gaps):
+                    y += gaps[i]
 
     return bg
 
