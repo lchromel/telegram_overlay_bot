@@ -148,6 +148,7 @@ def detect_discount(text):
         r'\b(?:бесплатно|free)\b',                 # бесплатно, free
         r'\b(?:подарок|gift)\b',                   # подарок, gift
         r'\b(?:акция|sale)\b',                     # акция, sale
+        r'\b\d+%\b',                               # Just percentage like 30%
     ]
     
     for pattern in patterns:
@@ -362,6 +363,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         if headline:
             st, font = resolve_style("headline", layout_key, banner_key)
             lines = wrap_with_limits(draw, headline, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
+            logger.info(f"1200x628 headline wrapped into lines: {lines}")
             line_spacing = int(font.size * 0.15)
             for idx, line in enumerate(lines):
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
