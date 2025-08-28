@@ -266,6 +266,15 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
         draw.text((x, y), text, font=font, fill=fill_color)
         return y + font.getbbox(text)[3]
     
+    # For debugging: always draw a simple background for any text containing numbers
+    if any(char.isdigit() for char in text):
+        logger.info(f"Drawing debug background for text with numbers: '{text}'")
+        # Draw a simple rectangle background
+        bbox = draw.textbbox((x, y), text, font=font)
+        draw.rectangle([bbox[0]-5, bbox[1]-5, bbox[2]+5, bbox[3]+5], fill=(255, 255, 0))  # Yellow background
+        draw.text((x, y), text, font=font, fill=(0, 0, 0))  # Black text
+        return y + font.getbbox(text)[3]
+    
     # Draw text with discount highlighting
     current_x = x
     last_end = 0
