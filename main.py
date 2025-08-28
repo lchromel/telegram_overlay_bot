@@ -337,70 +337,23 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
     
     # Now draw text on top of the overlay
     draw = ImageDraw.Draw(bg)
-    layout = LAYOUTS.get(layout_key, LAYOUTS["Yango_photo"])
-    pad = layout["padding"]
-    max_w = w - pad["left"] - pad["right"]
-
-    content_map = {"headline": headline or "", "subline": subline or "", "disclaimer": disclaimer or ""}
-
-    blocks = []
-    for key in layout["text_stack"]:
-        raw = content_map.get(key, "")
-        if not raw.strip():
-            continue
-        st, font = resolve_style(key, layout_key, banner_key)
-        lines = wrap_with_limits(draw, raw, font, max_w, st.get("max_lines", 0), st.get("ellipsis", False))
-        blocks.append((lines, st, font, key))
-
-    # measure
-    total_h = 0
-    gaps = []
-    for i, (lines, st, font, key) in enumerate(blocks):
-        total_h += line_height_px(font, st["line_height"]) * len(lines)
-        if i < len(blocks) - 1:
-            nxt_key = blocks[i + 1][3]
-            gaps.append(get_gap(layout, key, nxt_key, banner_key))
-    total_h += sum(gaps) if gaps else 0
-
-    # anchor position
-    anchor = layout["anchor"]
-    if anchor == "bottom_left":
-        x = pad["left"]
-        y = h - pad["bottom"] - total_h
-    elif anchor == "bottom_center":
-        x = (w - max_w) // 2  # Center horizontally
-        # Special handling for 1080x1920 - 200px larger bottom margin
-        if banner_key == "1080x1920":
-            y = h - 250 - total_h  # 50px default + 200px extra = 250px
-        else:
-            y = h - pad["bottom"] - total_h
-    elif anchor == "center":
-        x = pad["left"]
-        y = (h - total_h) // 2
-    elif anchor == "top_left":
-        x = pad["left"]
-        y = pad["top"]
-    elif anchor == "top_right":
-        x = w - pad["right"] - max_w
-        y = pad["top"]
-    elif anchor == "bottom_right":
-        x = w - pad["right"] - max_w
-        y = h - pad["bottom"] - total_h
-    else:
-        x = pad["left"]
-        y = h - pad["bottom"] - total_h
-
-    # Special handling for 1200x628 size
+    
+    # Special handling for 1200x628 size - bypass layout system entirely
     if banner_key == "1200x628":
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         y = 40
         block_x = 40
         block_width = 540
         
+        # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
+        y = 40
+        block_x = 40
+        block_width = 540
+        
         # Process headline
-        headline_blocks = [block for block in blocks if block[3] == "headline"]
-        if headline_blocks:
-            lines, st, font, _ = headline_blocks[0]
+        if headline:
+            st, font = resolve_style("headline", layout_key, banner_key)
+            lines = wrap_with_limits(draw, headline, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
             line_spacing = int(font.size * 0.15)
             for idx, line in enumerate(lines):
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
@@ -413,11 +366,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             y += 28
         
         # Process subline (subtitle)
-        subline_blocks = [block for block in blocks if block[3] == "subline"]
-        if subline_blocks:
-            lines, st, font, _ = subline_blocks[0]
+        if subline:
+            st, font = resolve_style("subline", layout_key, banner_key)
             subtitle_block_width = 460
             subtitle_block_x = 80
+            lines = wrap_with_limits(draw, subline, font, subtitle_block_width, st.get("max_lines", 0), st.get("ellipsis", False))
             line_spacing = int(font.size * 0.2)
             for idx, line in enumerate(lines):
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
@@ -430,9 +383,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             y += 28
         
         # Process disclaimer separately
-        disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
-        if disclaimer_blocks:
-            lines, st, font, _ = disclaimer_blocks[0]
+        if disclaimer:
+            st, font = resolve_style("disclaimer", layout_key, banner_key)
+            lines = wrap_with_limits(draw, disclaimer, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
             # Calculate total height of disclaimer block
             total_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*10
             disclaimer_y = h - 40 - total_height
@@ -442,7 +395,60 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
                 disclaimer_y += lh + 10
     else:
-        # Standard positioning for other sizes
+        # Standard positioning for other sizes - use layout system
+        layout = LAYOUTS.get(layout_key, LAYOUTS["Yango_photo"])
+        pad = layout["padding"]
+        max_w = w - pad["left"] - pad["right"]
+
+        content_map = {"headline": headline or "", "subline": subline or "", "disclaimer": disclaimer or ""}
+
+        blocks = []
+        for key in layout["text_stack"]:
+            raw = content_map.get(key, "")
+            if not raw.strip():
+                continue
+            st, font = resolve_style(key, layout_key, banner_key)
+            lines = wrap_with_limits(draw, raw, font, max_w, st.get("max_lines", 0), st.get("ellipsis", False))
+            blocks.append((lines, st, font, key))
+
+        # measure
+        total_h = 0
+        gaps = []
+        for i, (lines, st, font, key) in enumerate(blocks):
+            total_h += line_height_px(font, st["line_height"]) * len(lines)
+            if i < len(blocks) - 1:
+                nxt_key = blocks[i + 1][3]
+                gaps.append(get_gap(layout, key, nxt_key, banner_key))
+        total_h += sum(gaps) if gaps else 0
+
+        # anchor position
+        anchor = layout["anchor"]
+        if anchor == "bottom_left":
+            x = pad["left"]
+            y = h - pad["bottom"] - total_h
+        elif anchor == "bottom_center":
+            x = (w - max_w) // 2  # Center horizontally
+            # Special handling for 1080x1920 - 200px larger bottom margin
+            if banner_key == "1080x1920":
+                y = h - 250 - total_h  # 50px default + 200px extra = 250px
+            else:
+                y = h - pad["bottom"] - total_h
+        elif anchor == "center":
+            x = pad["left"]
+            y = (h - total_h) // 2
+        elif anchor == "top_left":
+            x = pad["left"]
+            y = pad["top"]
+        elif anchor == "top_right":
+            x = w - pad["right"] - max_w
+            y = pad["top"]
+        elif anchor == "bottom_right":
+            x = w - pad["right"] - max_w
+            y = h - pad["bottom"] - total_h
+        else:
+            x = pad["left"]
+            y = h - pad["bottom"] - total_h
+
         if banner_key == "1080x1920":
             # Special handling for 1080x1920 - disclaimer positioned separately
             main_blocks = [block for block in blocks if block[3] != "disclaimer"]
