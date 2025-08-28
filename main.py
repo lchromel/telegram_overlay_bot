@@ -236,6 +236,9 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     # Detect discounts in the text
     discounts = list(detect_discount(text))
     
+    if discounts:
+        logger.info(f"Found discounts in text: {discounts}")
+    
     if not discounts:
         # No discounts found, draw normal text
         draw.text((x, y), text, font=font, fill=fill_color)
@@ -340,11 +343,6 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
     
     # Special handling for 1200x628 size - bypass layout system entirely
     if banner_key == "1200x628":
-        # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
-        y = 40
-        block_x = 40
-        block_width = 540
-        
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         y = 40
         block_x = 40
