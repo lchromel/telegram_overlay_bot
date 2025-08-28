@@ -12,24 +12,79 @@ from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with more detail
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Load configuration
-with open("config.json", "r", encoding="utf-8") as f:
-    CONFIG = json.load(f)
-
-SIZES = {k: tuple(v) for k, v in CONFIG["sizes"].items()}
-BASE_STYLE = CONFIG["base_style"]
-LAYOUTS = CONFIG["layouts"]
+try:
+    with open("config.json", "r", encoding="utf-8") as f:
+        CONFIG = json.load(f)
+    SIZES = {k: tuple(v) for k, v in CONFIG["sizes"].items()}
+    BASE_STYLE = CONFIG["base_style"]
+    LAYOUTS = CONFIG["layouts"]
+    logger.info("Configuration loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load config.json: {e}")
+    # Set defaults if config fails to load
+    SIZES = {"1200x1200": (1200, 1200)}
+    BASE_STYLE = {}
+    LAYOUTS = {}
 
 # Telegram bot setup
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-application = ApplicationBuilder().token(TOKEN).build()
+if not TOKEN:
+    logger.error("TELEGRAM_BOT_TOKEN environment variable not set!")
+else:
+    logger.info(f"Telegram bot token found: {TOKEN[:10]}...")
+
+try:
+    application = ApplicationBuilder().token(TOKEN).build()
+    logger.info("Telegram application built successfully")
+except Exception as e:
+    logger.error(f"Failed to build Telegram application: {e}")
+    application = None
 
 # FastAPI app setup
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    """Set up webhook on application startup"""
+    if not TOKEN:
+        logger.error("Cannot set up webhook - TELEGRAM_BOT_TOKEN not set")
+        return
+    
+    if not application:
+        logger.error("Cannot set up webhook - Telegram application not initialized")
+        return
+    
+    try:
+        # Get the webhook URL
+        webhook_url = os.environ.get("WEBHOOK_URL")
+        if not webhook_url:
+            # Try to construct from Railway URL
+            railway_url = os.environ.get("RAILWAY_STATIC_URL")
+            if railway_url:
+                webhook_url = f"{railway_url}/telegram-webhook"
+            else:
+                logger.warning("WEBHOOK_URL not set - webhook will not be configured automatically")
+                return
+        
+        logger.info(f"Setting up webhook to: {webhook_url}")
+        await application.bot.set_webhook(url=webhook_url)
+        logger.info("✅ Webhook set up successfully on startup")
+        
+        # Log webhook info
+        webhook_info = await application.bot.get_webhook_info()
+        logger.info(f"Webhook URL: {webhook_info.url}")
+        logger.info(f"Pending updates: {webhook_info.pending_update_count}")
+        
+    except Exception as e:
+        logger.error(f"Failed to set up webhook on startup: {e}")
 
 def load_font(path, size):
     try:
@@ -208,7 +263,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
 # Telegram bot handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command"""
-    welcome_message = """Привет! ✅ Я работаю на Railway через webhook
+    logger.info(f"Received /start command from user {update.effective_user.id}")
+    try:
+        welcome_message = """Привет! ✅ Я работаю на Railway через webhook
 
 Доступные команды:
 /start - Показать это сообщение
@@ -216,11 +273,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /layouts - Показать доступные размеры и макеты
 
 Для обработки изображений используйте веб-интерфейс или API."""
-    await update.message.reply_text(welcome_message)
+        await update.message.reply_text(welcome_message)
+        logger.info("Start command response sent successfully")
+    except Exception as e:
+        logger.error(f"Error in start command: {e}")
+        await update.message.reply_text("Произошла ошибка при обработке команды.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command"""
-    help_text = """📋 Справка по использованию бота:
+    logger.info(f"Received /help command from user {update.effective_user.id}")
+    try:
+        help_text = """📋 Справка по использованию бота:
 
 🖼️ Доступные размеры изображений:
 • 1200x1200 (квадрат)
@@ -238,33 +301,63 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🌐 Веб-интерфейс: /render endpoint
 📡 API: POST /render с параметрами"""
-    await update.message.reply_text(help_text)
+        await update.message.reply_text(help_text)
+        logger.info("Help command response sent successfully")
+    except Exception as e:
+        logger.error(f"Error in help command: {e}")
+        await update.message.reply_text("Произошла ошибка при обработке команды.")
 
 async def layouts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /layouts command"""
-    sizes_text = "📏 Доступные размеры:\n" + "\n".join([f"• {size}" for size in SIZES.keys()])
-    layouts_text = "🎨 Доступные макеты:\n" + "\n".join([f"• {layout}" for layout in LAYOUTS.keys()])
-    
-    await update.message.reply_text(f"{sizes_text}\n\n{layouts_text}")
+    logger.info(f"Received /layouts command from user {update.effective_user.id}")
+    try:
+        sizes_text = "📏 Доступные размеры:\n" + "\n".join([f"• {size}" for size in SIZES.keys()])
+        layouts_text = "🎨 Доступные макеты:\n" + "\n".join([f"• {layout}" for layout in LAYOUTS.keys()])
+        
+        await update.message.reply_text(f"{sizes_text}\n\n{layouts_text}")
+        logger.info("Layouts command response sent successfully")
+    except Exception as e:
+        logger.error(f"Error in layouts command: {e}")
+        await update.message.reply_text("Произошла ошибка при обработке команды.")
 
-# Register Telegram handlers
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("help", help_command))
-application.add_handler(CommandHandler("layouts", layouts_command))
+# Register Telegram handlers only if application was built successfully
+if application:
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("layouts", layouts_command))
+    logger.info("Telegram handlers registered successfully")
+else:
+    logger.error("Cannot register handlers - application is None")
 
 # FastAPI routes
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
     """Handle Telegram webhook updates"""
-    data = await request.json()
-    update = Update.de_json(data, application.bot)
-    await application.process_update(update)
-    return {"ok": True}
+    try:
+        data = await request.json()
+        logger.info(f"Received webhook update: {data.get('update_id', 'unknown')}")
+        
+        if not application:
+            logger.error("Telegram application not available")
+            return {"ok": False, "error": "Application not initialized"}
+        
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+        logger.info("Webhook update processed successfully")
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        return {"ok": False, "error": str(e)}
 
 @app.get("/")
 def health():
     """Health check endpoint"""
-    return {"status": "ok", "service": "telegram_overlay_bot"}
+    return {
+        "status": "ok", 
+        "service": "telegram_overlay_bot",
+        "telegram_token_set": bool(TOKEN),
+        "application_ready": bool(application)
+    }
 
 @app.get("/health")
 def health_check():
@@ -315,6 +408,27 @@ async def render_image(
             {"error": f"Failed to render image: {str(e)}"}, 
             status_code=500
         )
+
+# Add a test endpoint to verify the bot is working
+@app.get("/test-bot")
+async def test_bot():
+    """Test endpoint to verify bot functionality"""
+    if not application:
+        return JSONResponse({"error": "Bot not initialized"}, status_code=500)
+    
+    try:
+        bot_info = await application.bot.get_me()
+        return {
+            "bot_name": bot_info.first_name,
+            "bot_username": bot_info.username,
+            "bot_id": bot_info.id,
+            "can_join_groups": bot_info.can_join_groups,
+            "can_read_all_group_messages": bot_info.can_read_all_group_messages,
+            "supports_inline_queries": bot_info.supports_inline_queries
+        }
+    except Exception as e:
+        logger.error(f"Error getting bot info: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn
