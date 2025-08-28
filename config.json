@@ -39,7 +39,7 @@
         "1200x628": 32,
         "1080x1920": 43
       },
-      "line_height": 1.2,
+      "line_height": 1.1,
       "align": "center",
       "max_lines": 3,
       "ellipsis": true
@@ -47,10 +47,10 @@
     "disclaimer": {
       "font": "Fonts/YangoGroupText-Medium.ttf",
       "size": {
-        "1200x1200": 14,
-        "1200x1500": 14,
-        "1200x628": 12,
-        "1080x1920": 13
+        "1200x1200": 16,
+        "1200x1500": 16,
+        "1200x628": 14,
+        "1080x1920": 15
       },
       "line_height": 1.1,
       "align": "center",

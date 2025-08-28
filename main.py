@@ -369,7 +369,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         y = h - pad["bottom"] - total_h
     elif anchor == "bottom_center":
         x = (w - max_w) // 2  # Center horizontally
-        y = h - pad["bottom"] - total_h
+        # Special handling for 1080x1920 - 200px larger bottom margin
+        if banner_key == "1080x1920":
+            y = h - 250 - total_h  # 50px default + 200px extra = 250px
+        else:
+            y = h - pad["bottom"] - total_h
     elif anchor == "center":
         x = pad["left"]
         y = (h - total_h) // 2
@@ -391,7 +395,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         # 1200x628: anchor all text blocks to the top, 40px margin from top, 28px spacing between blocks
         y = 40
         block_x = 40
-        block_width = 540
+        block_width = 480  # Updated to 480px
         
         for i, (lines, st, font, key) in enumerate(blocks):
             lh = line_height_px(font, st["line_height"])
@@ -402,6 +406,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 subtitle_block_x = 80
                 current_x = subtitle_block_x
                 current_width = subtitle_block_width
+            elif key == "disclaimer":
+                # Disclaimer aligned to right edge with 50px margin
+                current_x = w - 50 - block_width  # Right edge minus margin minus block width
+                current_width = block_width
             else:
                 current_x = block_x
                 current_width = block_width
