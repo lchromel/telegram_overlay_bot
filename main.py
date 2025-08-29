@@ -894,11 +894,24 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle image upload"""
+    """Handle image upload (both photos and document files)"""
     try:
-        # Get the largest photo
-        photo = update.message.photo[-1]
-        file = await context.bot.get_file(photo.file_id)
+        # Check if it's a photo or document
+        if update.message.photo:
+            # Handle photo
+            photo = update.message.photo[-1]
+            file = await context.bot.get_file(photo.file_id)
+        elif update.message.document:
+            # Handle document file
+            document = update.message.document
+            # Check if it's an image file
+            if not document.mime_type or not document.mime_type.startswith('image/'):
+                await update.message.reply_text("❌ Пожалуйста, отправьте изображение (файл должен быть изображением).")
+                return WAITING_FOR_IMAGE
+            file = await context.bot.get_file(document.file_id)
+        else:
+            await update.message.reply_text("❌ Пожалуйста, отправьте изображение.")
+            return WAITING_FOR_IMAGE
         
         # Download the image
         image_data = await file.download_as_bytearray()
@@ -1131,7 +1144,7 @@ if application:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            WAITING_FOR_IMAGE: [MessageHandler(filters.PHOTO, handle_image)],
+            WAITING_FOR_IMAGE: [MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_image)],
             WAITING_FOR_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)],
             WAITING_FOR_SIZE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_size)],
             WAITING_FOR_LAYOUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_layout)],
