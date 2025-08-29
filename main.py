@@ -477,7 +477,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # 1200x628 specific positioning
-            download_x = 40 - 60 + 236 - 40  # Move left by 60px from original position + 236px to the right - 40px to the left
+            download_x = 40 - 60 + 236 - 40 + 24  # Move left by 60px from original position + 236px to the right - 40px to the left + 24px to the right
             download_y = h - 40 - download_font.getbbox(download_phrase)[3] - 70  # Move up by 70px
             
             # Draw the download phrase with appropriate text block width
