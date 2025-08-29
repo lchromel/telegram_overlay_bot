@@ -469,8 +469,14 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             download_x = 40 - 60 + 236 - 40  # Move left by 60px from original position + 236px to the right - 40px to the left
             download_y = h - 40 - download_font.getbbox(download_phrase)[3] - 70  # Move up by 70px
             
-            # Draw the download phrase with 315px text block width, left-aligned
-            lines = wrap_with_limits(draw, download_phrase, download_font, 315, 2, False)
+            # Draw the download phrase with appropriate text block width
+            if banner_key == "1200x628":
+                # No width limitation for 1200x628
+                max_width = w - download_x - 40  # Use remaining width (40px right margin)
+                lines = wrap_with_limits(draw, download_phrase, download_font, max_width, 2, False)
+            else:
+                # Use 315px width for other sizes
+                lines = wrap_with_limits(draw, download_phrase, download_font, 315, 2, False)
             for line in lines:
                 lw, lh = draw.textbbox((0, 0), line, font=download_font)[2:]
                 draw_x = download_x  # Left-aligned
@@ -583,9 +589,24 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
         else:
-            # Standard positioning for other sizes
-            for i, (lines, st, font, key) in enumerate(blocks):
-                lh = line_height_px(font, st["line_height"])
+            # Special handling for Yango_pro_app main text blocks in specific sizes
+            if layout_key == "Yango_pro_app" and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
+                # Left-align main text blocks with specific margins
+                left_margin = 80 if banner_key in ["1200x1200", "1200x1500"] else 48  # 48px for 1200x628
+                
+                for i, (lines, st, font, key) in enumerate(blocks):
+                    lh = line_height_px(font, st["line_height"])
+                    
+                    for line in lines:
+                        # Left-align with specific margin
+                        draw_text_with_highlights(draw, line, font, left_margin, y, (255, 255, 255, 255))
+                        y += lh
+                    if i < len(gaps):
+                        y += gaps[i]
+            else:
+                # Standard positioning for other sizes
+                for i, (lines, st, font, key) in enumerate(blocks):
+                    lh = line_height_px(font, st["line_height"])
                 align = st.get("align", "left")
                 # auto right align if RTL text and layout isn't explicitly left
                 join_text = " ".join(lines)
