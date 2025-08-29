@@ -579,7 +579,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             if layout_key in ["Yango_pro_app", "Yango_app"]:
                 y -= 30
             elif layout_key in ["Yango_Red", "Yango_pro_Red"]:
-                y += 170  # Move down by 170px for Yango_Red layouts
+                y += 200  # Move down by 170px for Yango_Red layouts
             else:
                 y += 50
             
