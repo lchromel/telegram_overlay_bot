@@ -413,7 +413,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             for idx, line in enumerate(lines):
                 logger.info(f"Processing line {idx}: '{line}'")
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                draw_x = block_x + (block_width - lw) // 2
+                if layout_key == "Yango_pro_app":
+                    # Use left alignment with 48px margin for Yango_pro_app
+                    draw_x = 48
+                else:
+                    # Use center alignment for other layouts
+                    draw_x = block_x + (block_width - lw) // 2
                 draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
                 if idx < len(lines) - 1:
                     y += lh + line_spacing
@@ -430,7 +435,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             line_spacing = int(font.size * 0.2)
             for idx, line in enumerate(lines):
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                draw_x = subtitle_block_x + (subtitle_block_width - lw) // 2
+                if layout_key == "Yango_pro_app":
+                    # Use left alignment with 48px margin for Yango_pro_app
+                    draw_x = 48
+                else:
+                    # Use center alignment for other layouts
+                    draw_x = subtitle_block_x + (subtitle_block_width - lw) // 2
                 draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
                 if idx < len(lines) - 1:
                     y += lh + line_spacing
@@ -602,7 +612,13 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         else:
             # Special handling for Yango_pro_app main text blocks in specific sizes
             if layout_key == "Yango_pro_app" and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
-                for i, (lines, st, font, key) in enumerate(blocks):
+                # Filter out disclaimer for 1200x1200 and 1200x1500 (keep custom disclaimer positioning)
+                if banner_key in ["1200x1200", "1200x1500"]:
+                    filtered_blocks = [block for block in blocks if block[3] != "disclaimer"]
+                else:
+                    filtered_blocks = blocks
+                
+                for i, (lines, st, font, key) in enumerate(filtered_blocks):
                     lh = line_height_px(font, st["line_height"])
                     # Get left margin from style configuration
                     left_margin = st.get("left_margin", {}).get(banner_key, 150)
