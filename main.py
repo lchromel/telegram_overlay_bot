@@ -430,31 +430,43 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         # Process disclaimer separately
         if disclaimer:
             st, font = resolve_style("disclaimer", layout_key, banner_key)
-            lines = wrap_with_limits(draw, disclaimer, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
-            # Calculate total height of disclaimer block
-            total_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*10
-            disclaimer_y = h - 40 - total_height
-            for line in lines:
-                lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                draw_x = w - 40 - lw  # Right align with 40px margin
-                draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                disclaimer_y += lh + 10
+            if layout_key == "Yango_pro_app":
+                # Yango_pro_app specific disclaimer positioning for 1200x628
+                lines = wrap_with_limits(draw, disclaimer, font, 750, st.get("max_lines", 0), st.get("ellipsis", False))
+                disclaimer_y = 540  # 540px from top
+                for line in lines:
+                    lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
+                    draw_x = 200  # 200px from left edge
+                    draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += lh + 10
+            else:
+                # Standard disclaimer positioning
+                lines = wrap_with_limits(draw, disclaimer, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
+                # Calculate total height of disclaimer block
+                total_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*10
+                disclaimer_y = h - 40 - total_height
+                for line in lines:
+                    lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
+                    draw_x = w - 40 - lw  # Right align with 40px margin
+                    draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += lh + 10
         
         # Add download app phrase for Yango_pro_app layout
         if layout_key == "Yango_pro_app":
             download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
-            st, font = resolve_style("subline", layout_key, banner_key)  # Use subline style for consistent sizing
+            st, font = resolve_style("headline", layout_key, banner_key)  # Use headline style
             
-            # Position the download phrase to the right of the logo area
-            # Based on the images, it should be positioned around 24% from left edge and aligned with logo baseline
-            logo_area_width = 200  # Approximate width of YANGO PRO logo area
-            download_x = 40 + logo_area_width + 20  # 40px margin + logo width + 20px gap
+            # 1200x628 specific positioning
+            download_x = 40 - 60  # Move left by 60px from original position
+            download_y = h - 40 - font.getbbox(download_phrase)[3] - 70  # Move up by 70px
             
-            # Position at bottom, aligned with logo baseline (approximately 6.5% from bottom)
-            download_y = h - 40 - font.getbbox(download_phrase)[3]
-            
-            # Draw the download phrase
-            draw_text_with_highlights(draw, download_phrase, font, download_x, download_y, (255, 255, 255, 255))
+            # Draw the download phrase with 315px text block width
+            lines = wrap_with_limits(draw, download_phrase, font, 315, st.get("max_lines", 0), st.get("ellipsis", False))
+            for line in lines:
+                lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
+                draw_x = download_x + (315 - lw) // 2  # Center within 315px width
+                draw_text_with_highlights(draw, line, font, draw_x, download_y, (255, 255, 255, 255))
+                download_y += lh + 5
     else:
         # Standard positioning for other sizes - use layout system
         layout = LAYOUTS.get(layout_key, LAYOUTS["Yango_photo"])
@@ -489,9 +501,13 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             y = h - pad["bottom"] - total_h
         elif anchor == "bottom_center":
             x = (w - max_w) // 2  # Center horizontally
-            # Special handling for 1080x1920 - 200px larger bottom margin
+            # Special handling for different banner sizes
             if banner_key == "1080x1920":
                 y = h - 250 - total_h  # 50px default + 200px extra = 250px
+            elif banner_key == "1200x1500" and layout_key == "Yango_pro_app":
+                y = h - pad["bottom"] - total_h - 200  # Move up by 200px
+            elif banner_key == "1200x1200" and layout_key == "Yango_pro_app":
+                y = h - pad["bottom"] - total_h - 170  # Move up by 170px
             else:
                 y = h - pad["bottom"] - total_h
         elif anchor == "center":
@@ -515,8 +531,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             main_blocks = [block for block in blocks if block[3] != "disclaimer"]
             disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
             
-            # Move text block 50px lower for 1080x1920
-            y += 50
+            # Move text block up by 30px for Yango_pro_app, otherwise 50px lower
+            if layout_key == "Yango_pro_app":
+                y -= 30
+            else:
+                y += 50
             
             # Process main text blocks first
             for i, (lines, st, font, key) in enumerate(main_blocks):
@@ -555,41 +574,83 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         else:
             # Standard positioning for other sizes
             for i, (lines, st, font, key) in enumerate(blocks):
-                lh = line_height_px(font, st["line_height"])
-                align = st.get("align", "left")
-                # auto right align if RTL text and layout isn't explicitly left
-                join_text = " ".join(lines)
-                if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
-                    align = "right"
-                for line in lines:
-                    # compute x by align
-                    if align == "center":
-                        lw = text_width(draw, line, font)
-                        dx = (max_w - lw) // 2
-                        draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
-                    elif align == "right":
-                        lw = text_width(draw, line, font)
-                        draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
-                    else:
-                        draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
-                    y += lh
-                if i < len(gaps):
-                    y += gaps[i]
+            lh = line_height_px(font, st["line_height"])
+            align = st.get("align", "left")
+            # auto right align if RTL text and layout isn't explicitly left
+            join_text = " ".join(lines)
+            if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
+                align = "right"
+            
+
+            
+            for line in lines:
+                # compute x by align
+                if align == "center":
+                    lw = text_width(draw, line, font)
+                    dx = (max_w - lw) // 2
+                    draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
+                elif align == "right":
+                    lw = text_width(draw, line, font)
+                    draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
+                else:
+                    draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
+                y += lh
+            if i < len(gaps):
+                y += gaps[i]
         
         # Add download app phrase for Yango_pro_app layout in standard positioning
         if layout_key == "Yango_pro_app":
             download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
-            st, font = resolve_style("subline", layout_key, banner_key)
+            st, font = resolve_style("headline", layout_key, banner_key)  # Use headline style
             
-            # Position at bottom left, similar to the 1200x628 positioning
-            logo_area_width = 200  # Approximate width of YANGO PRO logo area
-            download_x = pad["left"] + logo_area_width + 20  # Left margin + logo width + gap
+            # Position based on banner size
+            if banner_key == "1080x1920":
+                # Move up by 240px and right by 260px
+                download_x = pad["left"] + 260
+                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3] - 240
+            elif banner_key == "1200x1500":
+                # Move up by 110px
+                download_x = pad["left"]
+                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3] - 110
+            elif banner_key == "1200x1200":
+                # Move up by 110px
+                download_x = pad["left"]
+                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3] - 110
+            else:
+                # Default positioning
+                download_x = pad["left"]
+                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3]
             
-            # Position at bottom, aligned with logo baseline
-            download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3]
+            # Draw the download phrase with 315px text block width
+            lines = wrap_with_limits(draw, download_phrase, font, 315, st.get("max_lines", 0), st.get("ellipsis", False))
+            for line in lines:
+                lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
+                draw_x = download_x + (315 - lw) // 2  # Center within 315px width
+                draw_text_with_highlights(draw, line, font, draw_x, download_y, (255, 255, 255, 255))
+                download_y += lh + 5
+        
+        # Add disclaimer positioning for Yango_pro_app layout in standard positioning
+        if layout_key == "Yango_pro_app" and disclaimer:
+            st, font = resolve_style("disclaimer", layout_key, banner_key)
             
-            # Draw the download phrase
-            draw_text_with_highlights(draw, download_phrase, font, download_x, download_y, (255, 255, 255, 255))
+            if banner_key == "1200x1500":
+                # Disclaimer aligned left, offset: 274px from left edge and 1350px from top
+                # Text block ends 274px before the right edge
+                disclaimer_width = w - 274 - 274  # Total width minus left and right offsets
+                lines = wrap_with_limits(draw, disclaimer, font, disclaimer_width, st.get("max_lines", 0), st.get("ellipsis", False))
+                disclaimer_y = 1350
+                for line in lines:
+                    draw_text_with_highlights(draw, line, font, 274, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += font.getbbox(line)[3] + 10
+            elif banner_key == "1200x1200":
+                # Disclaimer aligned left, offset: 270px from left edge and 1060px from top
+                # Text block ends 200px before the right edge
+                disclaimer_width = w - 270 - 200  # Total width minus left and right offsets
+                lines = wrap_with_limits(draw, disclaimer, font, disclaimer_width, st.get("max_lines", 0), st.get("ellipsis", False))
+                disclaimer_y = 1060
+                for line in lines:
+                    draw_text_with_highlights(draw, line, font, 270, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += font.getbbox(line)[3] + 10
 
     return bg
 
