@@ -578,6 +578,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             # Move text block up by 30px for Yango_pro_app and Yango_app, otherwise 50px lower
             if layout_key in ["Yango_pro_app", "Yango_app"]:
                 y -= 30
+            elif layout_key in ["Yango_Red", "Yango_pro_Red"]:
+                y += 170  # Move down by 170px for Yango_Red layouts
             else:
                 y += 50
             
@@ -623,11 +625,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     filtered_blocks = [block for block in blocks if block[3] != "disclaimer"]
                 else:
                     filtered_blocks = blocks
-            # Special handling for Yango_Red and Yango_pro_Red layouts
-            elif layout_key in ["Yango_Red", "Yango_pro_Red"] and banner_key in ["1200x1200", "1200x1500"]:
-                # Filter out disclaimer for custom disclaimer positioning
-                filtered_blocks = [block for block in blocks if block[3] != "disclaimer"]
                 
+                # Process the filtered blocks for Yango_pro_app and Yango_app
                 for i, (lines, st, font, key) in enumerate(filtered_blocks):
                     lh = line_height_px(font, st["line_height"])
                     # Get left margin from style configuration
@@ -636,6 +635,23 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     for line in lines:
                         # Left-align with margin from style configuration
                         draw_text_with_highlights(draw, line, font, left_margin, y, (255, 255, 255, 255))
+                        y += lh
+                    if i < len(gaps):
+                        y += gaps[i]
+            # Special handling for Yango_Red and Yango_pro_Red layouts
+            elif layout_key in ["Yango_Red", "Yango_pro_Red"] and banner_key in ["1200x1200", "1200x1500"]:
+                # Filter out disclaimer for custom disclaimer positioning
+                filtered_blocks = [block for block in blocks if block[3] != "disclaimer"]
+                
+                for i, (lines, st, font, key) in enumerate(filtered_blocks):
+                    lh = line_height_px(font, st["line_height"])
+                    align = st.get("align", "center")  # Force center alignment for Yango_Red layouts
+                    
+                    for line in lines:
+                        # Center-align text
+                        lw = text_width(draw, line, font)
+                        draw_x = (w - lw) // 2  # Center align
+                        draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
                         y += lh
                     if i < len(gaps):
                         y += gaps[i]
