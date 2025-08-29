@@ -608,25 +608,25 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 for i, (lines, st, font, key) in enumerate(blocks):
                     lh = line_height_px(font, st["line_height"])
                     align = st.get("align", "left")
-                # auto right align if RTL text and layout isn't explicitly left
-                join_text = " ".join(lines)
-                if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
-                    align = "right"
-                
-                for line in lines:
-                    # compute x by align
-                    if align == "center":
-                        lw = text_width(draw, line, font)
-                        dx = (max_w - lw) // 2
-                        draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
-                    elif align == "right":
-                        lw = text_width(draw, line, font)
-                        draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
-                    else:
-                        draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
-                    y += lh
-                if i < len(gaps):
-                    y += gaps[i]
+                    # auto right align if RTL text and layout isn't explicitly left
+                    join_text = " ".join(lines)
+                    if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
+                        align = "right"
+                    
+                    for line in lines:
+                        # compute x by align
+                        if align == "center":
+                            lw = text_width(draw, line, font)
+                            dx = (max_w - lw) // 2
+                            draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
+                        elif align == "right":
+                            lw = text_width(draw, line, font)
+                            draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
+                        else:
+                            draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
+                        y += lh
+                    if i < len(gaps):
+                        y += gaps[i]
         
         # Add download app phrase for Yango_pro_app layout in standard positioning
         if layout_key == "Yango_pro_app":
