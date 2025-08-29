@@ -352,10 +352,10 @@ def process_background_image(image, banner_key):
     """Process 2890x2890 background image with specific scale and offset for each banner size"""
     # Define scale and offset values for each banner size
     background_configs = {
-        "1200x1200": {"scale": 0.7, "offset_x": -200, "offset_y": -375},
-        "1200x1500": {"scale": 0.8, "offset_x": -275, "offset_y": -370},
-        "1200x628": {"scale": 0.6, "offset_x": 0, "offset_y": -275},
-        "1080x1920": {"scale": 0.8, "offset_x": -300, "offset_y": -200}
+        "1200x1200": {"scale": 0.6, "offset_x": -200, "offset_y": -375},
+        "1200x1500": {"scale": 0.7, "offset_x": -275, "offset_y": -370},
+        "1200x628": {"scale": 0.5, "offset_x": 0, "offset_y": -600},
+        "1080x1920": {"scale": 0.7, "offset_x": -300, "offset_y": -200}
     }
     
     if banner_key not in background_configs:
