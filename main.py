@@ -466,7 +466,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # 1200x628 specific positioning
-            download_x = 40 - 60 + 236  # Move left by 60px from original position + 236px to the right
+            download_x = 40 - 60 + 236 - 40  # Move left by 60px from original position + 236px to the right - 40px to the left
             download_y = h - 40 - download_font.getbbox(download_phrase)[3] - 70  # Move up by 70px
             
             # Draw the download phrase with 315px text block width, left-aligned
@@ -623,16 +623,16 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             
             # Position based on banner size
             if banner_key == "1080x1920":
-                # Move up by 240px and right by 260px + 220px = 480px
-                download_x = pad["left"] + 480
+                # Move up by 240px and right by 260px + 220px - 100px = 380px
+                download_x = pad["left"] + 380
                 download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 240
             elif banner_key == "1200x1500":
-                # Move up by 110px and right by 220px
-                download_x = pad["left"] + 220
+                # Move up by 110px and right by 220px - 100px = 120px
+                download_x = pad["left"] + 120
                 download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110
             elif banner_key == "1200x1200":
-                # Move up by 110px and right by 220px
-                download_x = pad["left"] + 220
+                # Move up by 110px and right by 220px - 100px = 120px
+                download_x = pad["left"] + 120
                 download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110
             else:
                 # Default positioning
