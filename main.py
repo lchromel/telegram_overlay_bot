@@ -28,10 +28,10 @@ WAITING_FOR_ANOTHER_BANNER = 5
 
 # Available sizes and layouts
 AVAILABLE_SIZES = ["1200x1200", "1200x1500", "1200x628", "1080x1920"]
-AVAILABLE_LAYOUTS = ["Yango_photo", "Yango_pro_app", "Yango_pro_photo", "Yango_pro_Red", "Yango_Red"]
+AVAILABLE_LAYOUTS = ["Yango_photo", "Yango_pro_app", "Yango_app", "Yango_pro_photo", "Yango_pro_Red", "Yango_Red"]
 AVAILABLE_LANGUAGES = ["English", "French", "Portuguese", "Arabic", "Spanish", "Azerbaijani", "Urdu"]
 
-# Download app phrases for Yango_pro_app layout
+# Download app phrases for Yango_pro_app and Yango_app layouts
 DOWNLOAD_APP_PHRASES = {
     "English": "Download the app",
     "French": "Téléchargez l'application",
@@ -540,9 +540,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             # Special handling for different banner sizes
             if banner_key == "1080x1920":
                 y = h - 250 - total_h  # 50px default + 200px extra = 250px
-            elif banner_key == "1200x1500" and layout_key == "Yango_pro_app":
+            elif banner_key == "1200x1500" and layout_key in ["Yango_pro_app", "Yango_app"]:
                 y = h - pad["bottom"] - total_h - 200  # Move up by 200px
-            elif banner_key == "1200x1200" and layout_key == "Yango_pro_app":
+            elif banner_key == "1200x1200" and layout_key in ["Yango_pro_app", "Yango_app"]:
                 y = h - pad["bottom"] - total_h - 170  # Move up by 170px
             elif banner_key == "1200x1200" and layout_key in ["Yango_Red", "Yango_pro_Red"]:
                 y = h - pad["bottom"] - total_h - 40  # Move up by 40px
@@ -575,8 +575,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             main_blocks = [block for block in blocks if block[3] != "disclaimer"]
             disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
             
-            # Move text block up by 30px for Yango_pro_app, otherwise 50px lower
-            if layout_key == "Yango_pro_app":
+            # Move text block up by 30px for Yango_pro_app and Yango_app, otherwise 50px lower
+            if layout_key in ["Yango_pro_app", "Yango_app"]:
                 y -= 30
             else:
                 y += 50
@@ -813,6 +813,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🎨 Доступные макеты:
 • Yango_photo
 • Yango_pro_app (включает фразу "Download the app")
+• Yango_app (включает фразу "Download the app")
 • Yango_pro_photo
 • Yango_pro_Red
 • Yango_Red
