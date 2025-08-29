@@ -589,10 +589,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
         else:
-            # Special handling for Yango_pro_app main text blocks in specific sizes
-            if layout_key == "Yango_pro_app" and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
-                # Left-align main text blocks with specific margins
-                left_margin = 80 if banner_key in ["1200x1200", "1200x1500"] else 48  # 48px for 1200x628
+            # Special handling for Yango_pro_app main text blocks in 1200x628 only
+            if layout_key == "Yango_pro_app" and banner_key == "1200x628":
+                # Left-align main text blocks with 48px margin from left edge
+                left_margin = 48
                 
                 for i, (lines, st, font, key) in enumerate(blocks):
                     lh = line_height_px(font, st["line_height"])
@@ -607,7 +607,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 # Standard positioning for other sizes
                 for i, (lines, st, font, key) in enumerate(blocks):
                     lh = line_height_px(font, st["line_height"])
-                align = st.get("align", "left")
+                    align = st.get("align", "left")
                 # auto right align if RTL text and layout isn't explicitly left
                 join_text = " ".join(lines)
                 if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
