@@ -511,13 +511,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             else:
                 y = h - pad["bottom"] - total_h
             
-            # Ensure text doesn't go above the top of the image
-            if y < pad["top"]:
-                y = pad["top"]
-            
-            # Ensure text doesn't go below the bottom of the image
-            if y + total_h > h - pad["bottom"]:
-                y = h - pad["bottom"] - total_h
+
         elif anchor == "center":
             x = pad["left"]
             y = (h - total_h) // 2
