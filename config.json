@@ -168,6 +168,31 @@
         ]
       }
     },
+    "Yango_app": {
+      "text_stack": [
+        "headline",
+        "subline",
+        "disclaimer"
+      ],
+      "anchor": "bottom_center",
+      "padding": {
+        "left": 150,
+        "right": 150,
+        "top": 50,
+        "bottom": 50
+      },
+      "gap": {
+        "default": 24,
+        "special": [
+          [
+            "subline",
+            "disclaimer",
+            164,
+            "1080x1920"
+          ]
+        ]
+      }
+    },
     "Yango_pro_photo": {
       "text_stack": [
         "headline",

@@ -218,7 +218,7 @@ def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
 
 def resolve_style(style_key, layout_key, banner_key):
     # Use Yango_pro_app style for specific banner sizes
-    if layout_key == "Yango_pro_app" and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
+    if layout_key in ["Yango_pro_app", "Yango_app"] and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
         if style_key in YANGO_PRO_APP_STYLE:
             base = dict(YANGO_PRO_APP_STYLE[style_key])
             # deep copy nested size dict
@@ -413,8 +413,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             for idx, line in enumerate(lines):
                 logger.info(f"Processing line {idx}: '{line}'")
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                if layout_key == "Yango_pro_app":
-                    # Use left alignment with 48px margin for Yango_pro_app
+                if layout_key in ["Yango_pro_app", "Yango_app"]:
+                    # Use left alignment with 48px margin for Yango_pro_app and Yango_app
                     draw_x = 48
                 else:
                     # Use center alignment for other layouts
@@ -435,8 +435,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             line_spacing = int(font.size * 0.2)
             for idx, line in enumerate(lines):
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                if layout_key == "Yango_pro_app":
-                    # Use left alignment with 48px margin for Yango_pro_app
+                if layout_key in ["Yango_pro_app", "Yango_app"]:
+                    # Use left alignment with 48px margin for Yango_pro_app and Yango_app
                     draw_x = 48
                 else:
                     # Use center alignment for other layouts
@@ -451,8 +451,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         # Process disclaimer separately
         if disclaimer:
             st, font = resolve_style("disclaimer", layout_key, banner_key)
-            if layout_key == "Yango_pro_app":
-                # Yango_pro_app specific disclaimer positioning for 1200x628
+            if layout_key in ["Yango_pro_app", "Yango_app"]:
+                # Yango_pro_app and Yango_app specific disclaimer positioning for 1200x628
                 lines = wrap_with_limits(draw, disclaimer, font, 750, st.get("max_lines", 0), st.get("ellipsis", False))
                 disclaimer_y = 540  # 540px from top
                 for line in lines:
@@ -472,8 +472,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += lh + 10
         
-        # Add download app phrase for Yango_pro_app layout
-        if layout_key == "Yango_pro_app":
+        # Add download app phrase for Yango_pro_app and Yango_app layouts
+        if layout_key in ["Yango_pro_app", "Yango_app"]:
             download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
             
             # Custom font sizes for download app phrase
@@ -544,6 +544,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 y = h - pad["bottom"] - total_h - 200  # Move up by 200px
             elif banner_key == "1200x1200" and layout_key == "Yango_pro_app":
                 y = h - pad["bottom"] - total_h - 170  # Move up by 170px
+            elif banner_key == "1200x1200" and layout_key in ["Yango_Red", "Yango_pro_Red"]:
+                y = h - pad["bottom"] - total_h - 40  # Move up by 40px
+            elif banner_key == "1200x1500" and layout_key in ["Yango_Red", "Yango_pro_Red"]:
+                y = h - pad["bottom"] - total_h - 240  # Move up by 240px
+            elif banner_key == "1080x1920" and layout_key in ["Yango_Red", "Yango_pro_Red"]:
+                y = h - pad["bottom"] - total_h + 170  # Move down by 170px
             else:
                 y = h - pad["bottom"] - total_h
             
@@ -610,13 +616,17 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
         else:
-            # Special handling for Yango_pro_app main text blocks in specific sizes
-            if layout_key == "Yango_pro_app" and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
+            # Special handling for Yango_pro_app and Yango_app main text blocks in specific sizes
+            if layout_key in ["Yango_pro_app", "Yango_app"] and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
                 # Filter out disclaimer for 1200x1200 and 1200x1500 (keep custom disclaimer positioning)
                 if banner_key in ["1200x1200", "1200x1500"]:
                     filtered_blocks = [block for block in blocks if block[3] != "disclaimer"]
                 else:
                     filtered_blocks = blocks
+            # Special handling for Yango_Red and Yango_pro_Red layouts
+            elif layout_key in ["Yango_Red", "Yango_pro_Red"] and banner_key in ["1200x1200", "1200x1500"]:
+                # Filter out disclaimer for custom disclaimer positioning
+                filtered_blocks = [block for block in blocks if block[3] != "disclaimer"]
                 
                 for i, (lines, st, font, key) in enumerate(filtered_blocks):
                     lh = line_height_px(font, st["line_height"])
@@ -654,8 +664,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     if i < len(gaps):
                         y += gaps[i]
         
-        # Add download app phrase for Yango_pro_app layout in standard positioning
-        if layout_key == "Yango_pro_app":
+        # Add download app phrase for Yango_pro_app and Yango_app layouts in standard positioning
+        if layout_key in ["Yango_pro_app", "Yango_app"]:
             download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
             
             # Custom font sizes for download app phrase
@@ -701,8 +711,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 draw_text_with_highlights(draw, line, download_font, draw_x, download_y, (255, 255, 255, 255))
                 download_y += lh + 5
         
-        # Add disclaimer positioning for Yango_pro_app layout in standard positioning
-        if layout_key == "Yango_pro_app" and disclaimer:
+        # Add disclaimer positioning for Yango_pro_app and Yango_app layouts in standard positioning
+        if layout_key in ["Yango_pro_app", "Yango_app"] and disclaimer:
             st, font = resolve_style("disclaimer", layout_key, banner_key)
             
             if banner_key == "1200x1500":
@@ -722,6 +732,31 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 disclaimer_y = 1060
                 for line in lines:
                     draw_text_with_highlights(draw, line, font, 270, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += font.getbbox(line)[3] + 10
+        
+        # Add disclaimer positioning for Yango_Red and Yango_pro_Red layouts
+        if layout_key in ["Yango_Red", "Yango_pro_Red"] and disclaimer:
+            st, font = resolve_style("disclaimer", layout_key, banner_key)
+            
+            if banner_key == "1200x1200":
+                # Disclaimer aligned right, 40px margin from right edge and 40px from bottom
+                # Disclaimer block width: 700px
+                lines = wrap_with_limits(draw, disclaimer, font, 700, st.get("max_lines", 0), st.get("ellipsis", False))
+                disclaimer_y = h - 40  # 40px from bottom
+                for line in lines:
+                    lw = text_width(draw, line, font)
+                    draw_x = w - 40 - lw  # Right align with 40px margin
+                    draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += font.getbbox(line)[3] + 10
+            elif banner_key == "1200x1500":
+                # Disclaimer aligned right, 80px margin from right edge and 80px from bottom
+                # Disclaimer block width: 700px
+                lines = wrap_with_limits(draw, disclaimer, font, 700, st.get("max_lines", 0), st.get("ellipsis", False))
+                disclaimer_y = h - 80  # 80px from bottom
+                for line in lines:
+                    lw = text_width(draw, line, font)
+                    draw_x = w - 80 - lw  # Right align with 80px margin
+                    draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += font.getbbox(line)[3] + 10
 
     return bg
