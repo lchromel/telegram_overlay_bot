@@ -348,6 +348,47 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     
     return y + font.getbbox(text)[3]
 
+def process_background_image(image, banner_key):
+    """Process 2890x2890 background image with specific scale and offset for each banner size"""
+    # Define scale and offset values for each banner size
+    background_configs = {
+        "1200x1200": {"scale": 0.7, "offset_x": -410, "offset_y": -650},
+        "1200x1500": {"scale": 0.8, "offset_x": -556, "offset_y": -747},
+        "1200x628": {"scale": 0.6, "offset_x": 0, "offset_y": -553},
+        "1080x1920": {"scale": 0.8, "offset_x": -616, "offset_y": -392}
+    }
+    
+    if banner_key not in background_configs:
+        logger.error(f"Unknown banner key: {banner_key}")
+        return image
+    
+    config = background_configs[banner_key]
+    scale = config["scale"]
+    offset_x = config["offset_x"]
+    offset_y = config["offset_y"]
+    
+    # Get target dimensions from SIZES
+    target_width, target_height = SIZES.get(banner_key, (1200, 1200))
+    
+    # Calculate scaled dimensions
+    scaled_width = int(2890 * scale)
+    scaled_height = int(2890 * scale)
+    
+    # Resize the image to the scaled size
+    scaled_image = image.resize((scaled_width, scaled_height), Image.LANCZOS)
+    
+    # Create a new image with target dimensions
+    result = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
+    
+    # Calculate position to paste the scaled image
+    paste_x = (target_width - scaled_width) // 2 + offset_x
+    paste_y = (target_height - scaled_height) // 2 + offset_y
+    
+    # Paste the scaled image onto the result
+    result.paste(scaled_image, (paste_x, paste_y))
+    
+    return result
+
 def crop_image_to_size(image, target_width, target_height):
     """Crop image to target size while maintaining aspect ratio"""
     img_width, img_height = image.size
@@ -861,7 +902,21 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Download the image
         image_data = await file.download_as_bytearray()
-        context.user_data['image_data'] = image_data
+        
+        # Check and resize image to 2890x2890 if needed
+        bg = Image.open(io.BytesIO(image_data))
+        img_width, img_height = bg.size
+        
+        if img_width != 2890 or img_height != 2890:
+            logger.info(f"Resizing image from {img_width}x{img_height} to 2890x2890")
+            bg = bg.resize((2890, 2890), Image.LANCZOS)
+            # Convert back to bytes for storage
+            img_byte_arr = io.BytesIO()
+            bg.save(img_byte_arr, format='PNG')
+            img_byte_arr = img_byte_arr.getvalue()
+            context.user_data['image_data'] = img_byte_arr
+        else:
+            context.user_data['image_data'] = image_data
         
         await update.message.reply_text(
             "✅ Изображение получено! Теперь введите текст в следующем формате:\n\n"
@@ -976,8 +1031,7 @@ async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Open and process the image
         bg = Image.open(io.BytesIO(image_data)).convert("RGBA")
-        w, h = SIZES.get(size, (1200, 1200))
-        bg = crop_image_to_size(bg, w, h)
+        bg = process_background_image(bg, size)
         
         # Apply overlay using the selected layout
         out = compose(bg, headline, subheadline, disclaimer, size, layout, apply_overlay=True, language=language)
@@ -1148,14 +1202,19 @@ async def render_image(
         data = await image.read()
         bg = Image.open(io.BytesIO(data)).convert("RGBA")
         
+        # Check and resize image to 2890x2890 if needed
+        img_width, img_height = bg.size
+        if img_width != 2890 or img_height != 2890:
+            logger.info(f"Resizing image from {img_width}x{img_height} to 2890x2890")
+            bg = bg.resize((2890, 2890), Image.LANCZOS)
+        
         if banner_size not in SIZES:
             return JSONResponse(
                 {"error": f"Unknown banner_size {banner_size}"}, 
                 status_code=400
             )
         
-        w, h = SIZES[banner_size]
-        bg = crop_image_to_size(bg, w, h)
+        bg = process_background_image(bg, banner_size)
         out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay, language)
         
         out_path = f"result_{uuid.uuid4().hex}.png"
