@@ -454,18 +454,27 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         # Add download app phrase for Yango_pro_app layout
         if layout_key == "Yango_pro_app":
             download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
-            st, font = resolve_style("headline", layout_key, banner_key)  # Use headline style
+            
+            # Custom font sizes for download app phrase
+            download_font_sizes = {
+                "1200x1200": 64,
+                "1200x1500": 64,
+                "1200x628": 48,
+                "1080x1920": 64
+            }
+            download_font_size = download_font_sizes.get(banner_key, 64)
+            download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # 1200x628 specific positioning
             download_x = 40 - 60  # Move left by 60px from original position
-            download_y = h - 40 - font.getbbox(download_phrase)[3] - 70  # Move up by 70px
+            download_y = h - 40 - download_font.getbbox(download_phrase)[3] - 70  # Move up by 70px
             
-            # Draw the download phrase with 315px text block width
-            lines = wrap_with_limits(draw, download_phrase, font, 315, st.get("max_lines", 0), st.get("ellipsis", False))
+            # Draw the download phrase with 315px text block width, left-aligned
+            lines = wrap_with_limits(draw, download_phrase, download_font, 315, 2, False)
             for line in lines:
-                lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                draw_x = download_x + (315 - lw) // 2  # Center within 315px width
-                draw_text_with_highlights(draw, line, font, draw_x, download_y, (255, 255, 255, 255))
+                lw, lh = draw.textbbox((0, 0), line, font=download_font)[2:]
+                draw_x = download_x  # Left-aligned
+                draw_text_with_highlights(draw, line, download_font, draw_x, download_y, (255, 255, 255, 255))
                 download_y += lh + 5
     else:
         # Standard positioning for other sizes - use layout system
@@ -601,32 +610,41 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         # Add download app phrase for Yango_pro_app layout in standard positioning
         if layout_key == "Yango_pro_app":
             download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
-            st, font = resolve_style("headline", layout_key, banner_key)  # Use headline style
+            
+            # Custom font sizes for download app phrase
+            download_font_sizes = {
+                "1200x1200": 64,
+                "1200x1500": 64,
+                "1200x628": 48,
+                "1080x1920": 64
+            }
+            download_font_size = download_font_sizes.get(banner_key, 64)
+            download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # Position based on banner size
             if banner_key == "1080x1920":
                 # Move up by 240px and right by 260px
                 download_x = pad["left"] + 260
-                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3] - 240
+                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 240
             elif banner_key == "1200x1500":
                 # Move up by 110px
                 download_x = pad["left"]
-                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3] - 110
+                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110
             elif banner_key == "1200x1200":
                 # Move up by 110px
                 download_x = pad["left"]
-                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3] - 110
+                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110
             else:
                 # Default positioning
                 download_x = pad["left"]
-                download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3]
+                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3]
             
-            # Draw the download phrase with 315px text block width
-            lines = wrap_with_limits(draw, download_phrase, font, 315, st.get("max_lines", 0), st.get("ellipsis", False))
+            # Draw the download phrase with 315px text block width, left-aligned
+            lines = wrap_with_limits(draw, download_phrase, download_font, 315, 2, False)
             for line in lines:
-                lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                draw_x = download_x + (315 - lw) // 2  # Center within 315px width
-                draw_text_with_highlights(draw, line, font, draw_x, download_y, (255, 255, 255, 255))
+                lw, lh = draw.textbbox((0, 0), line, font=download_font)[2:]
+                draw_x = download_x  # Left-aligned
+                draw_text_with_highlights(draw, line, download_font, draw_x, download_y, (255, 255, 255, 255))
                 download_y += lh + 5
         
         # Add disclaimer positioning for Yango_pro_app layout in standard positioning
