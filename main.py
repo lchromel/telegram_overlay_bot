@@ -48,6 +48,7 @@ try:
         CONFIG = json.load(f)
     SIZES = {k: tuple(v) for k, v in CONFIG["sizes"].items()}
     BASE_STYLE = CONFIG["base_style"]
+    YANGO_PRO_APP_STYLE = CONFIG.get("yango_pro_app_style", {})
     LAYOUTS = CONFIG["layouts"]
     logger.info("Configuration loaded successfully")
 except Exception as e:
@@ -216,6 +217,16 @@ def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
     return lines
 
 def resolve_style(style_key, layout_key, banner_key):
+    # Use Yango_pro_app style for specific banner sizes
+    if layout_key == "Yango_pro_app" and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
+        if style_key in YANGO_PRO_APP_STYLE:
+            base = dict(YANGO_PRO_APP_STYLE[style_key])
+            # deep copy nested size dict
+            base["size"] = dict(base["size"])
+            font = load_font(base["font"], base["size"][banner_key])
+            return base, font
+    
+    # Use standard base style for all other cases
     base = dict(BASE_STYLE[style_key])
     # deep copy nested size dict
     base["size"] = dict(base["size"])
@@ -589,16 +600,15 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     draw_text_with_highlights(draw, line, disclaimer_font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += line_height_px(disclaimer_font, disclaimer_st["line_height"])
         else:
-            # Special handling for Yango_pro_app main text blocks in 1200x628 only
-            if layout_key == "Yango_pro_app" and banner_key == "1200x628":
-                # Left-align main text blocks with 48px margin from left edge
-                left_margin = 48
-                
+            # Special handling for Yango_pro_app main text blocks in specific sizes
+            if layout_key == "Yango_pro_app" and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
                 for i, (lines, st, font, key) in enumerate(blocks):
                     lh = line_height_px(font, st["line_height"])
+                    # Get left margin from style configuration
+                    left_margin = st.get("left_margin", {}).get(banner_key, 150)
                     
                     for line in lines:
-                        # Left-align with specific margin
+                        # Left-align with margin from style configuration
                         draw_text_with_highlights(draw, line, font, left_margin, y, (255, 255, 255, 255))
                         y += lh
                     if i < len(gaps):
