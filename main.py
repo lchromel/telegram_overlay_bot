@@ -29,7 +29,18 @@ WAITING_FOR_ANOTHER_BANNER = 5
 # Available sizes and layouts
 AVAILABLE_SIZES = ["1200x1200", "1200x1500", "1200x628", "1080x1920"]
 AVAILABLE_LAYOUTS = ["Yango_photo", "Yango_pro_app", "Yango_pro_photo", "Yango_pro_Red", "Yango_Red"]
-AVAILABLE_LANGUAGES = ["Русский", "English", "العربية", "Türkçe", "Қазақша"]
+AVAILABLE_LANGUAGES = ["English", "French", "Portuguese", "Arabic", "Spanish", "Azerbaijani", "Urdu"]
+
+# Download app phrases for Yango_pro_app layout
+DOWNLOAD_APP_PHRASES = {
+    "English": "Download the app",
+    "French": "Téléchargez l'application",
+    "Portuguese": "Baixe o aplicativo",
+    "Arabic": "حمّل التطبيق",
+    "Spanish": "Descarga la aplicación",
+    "Azerbaijani": "Tətbiqi yüklə",
+    "Urdu": "App download karein"
+}
 
 # Load configuration
 try:
@@ -357,7 +368,7 @@ def crop_image_to_size(image, target_width, target_height):
     # Resize to exact target size
     return cropped.resize((target_width, target_height), Image.LANCZOS)
 
-def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_overlay=True):
+def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_overlay=True, language="English"):
     w, h = bg.size
     
     # Apply overlay first (before text)
@@ -428,6 +439,22 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 draw_x = w - 40 - lw  # Right align with 40px margin
                 draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
                 disclaimer_y += lh + 10
+        
+        # Add download app phrase for Yango_pro_app layout
+        if layout_key == "Yango_pro_app":
+            download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
+            st, font = resolve_style("subline", layout_key, banner_key)  # Use subline style for consistent sizing
+            
+            # Position the download phrase to the right of the logo area
+            # Based on the images, it should be positioned around 24% from left edge and aligned with logo baseline
+            logo_area_width = 200  # Approximate width of YANGO PRO logo area
+            download_x = 40 + logo_area_width + 20  # 40px margin + logo width + 20px gap
+            
+            # Position at bottom, aligned with logo baseline (approximately 6.5% from bottom)
+            download_y = h - 40 - font.getbbox(download_phrase)[3]
+            
+            # Draw the download phrase
+            draw_text_with_highlights(draw, download_phrase, font, download_x, download_y, (255, 255, 255, 255))
     else:
         # Standard positioning for other sizes - use layout system
         layout = LAYOUTS.get(layout_key, LAYOUTS["Yango_photo"])
@@ -548,6 +575,21 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     y += lh
                 if i < len(gaps):
                     y += gaps[i]
+        
+        # Add download app phrase for Yango_pro_app layout in standard positioning
+        if layout_key == "Yango_pro_app":
+            download_phrase = DOWNLOAD_APP_PHRASES.get(language, DOWNLOAD_APP_PHRASES["English"])
+            st, font = resolve_style("subline", layout_key, banner_key)
+            
+            # Position at bottom left, similar to the 1200x628 positioning
+            logo_area_width = 200  # Approximate width of YANGO PRO logo area
+            download_x = pad["left"] + logo_area_width + 20  # Left margin + logo width + gap
+            
+            # Position at bottom, aligned with logo baseline
+            download_y = h - pad["bottom"] - font.getbbox(download_phrase)[3]
+            
+            # Draw the download phrase
+            draw_text_with_highlights(draw, download_phrase, font, download_x, download_y, (255, 255, 255, 255))
 
     return bg
 
@@ -581,8 +623,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 2. Введите заголовок
 3. Введите подзаголовок
 4. Введите дисклеймер
-5. Выберите размер
-6. Выберите макет
+5. Выберите язык
+6. Выберите размер
+7. Выберите макет
 
 🖼️ Доступные размеры:
 • 1200x1200 (квадрат)
@@ -590,9 +633,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • 1200x628 (горизонтальный)
 • 1080x1920 (сторис)
 
+🌍 Поддерживаемые языки:
+• English
+• French
+• Portuguese
+• Arabic
+• Spanish
+• Azerbaijani
+• Urdu
+
 🎨 Доступные макеты:
 • Yango_photo
-• Yango_pro_app
+• Yango_pro_app (включает фразу "Download the app")
 • Yango_pro_photo
 • Yango_pro_Red
 • Yango_Red
@@ -743,7 +795,7 @@ async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bg = crop_image_to_size(bg, w, h)
         
         # Apply overlay using the selected layout
-        out = compose(bg, headline, subheadline, disclaimer, size, layout, apply_overlay=True)
+        out = compose(bg, headline, subheadline, disclaimer, size, layout, apply_overlay=True, language=language)
         
         # Save and send the result
         out_path = f"result_{uuid.uuid4().hex}.png"
@@ -903,7 +955,8 @@ async def render_image(
     disclaimer: str = Form(""),
     banner_size: str = Form("1200x1200"),
     layout_type: str = Form("Yango_photo"),
-    apply_overlay: bool = Form(True)
+    apply_overlay: bool = Form(True),
+    language: str = Form("English")
 ):
     """Render image with text overlay"""
     try:
@@ -918,7 +971,7 @@ async def render_image(
         
         w, h = SIZES[banner_size]
         bg = crop_image_to_size(bg, w, h)
-        out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay)
+        out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay, language)
         
         out_path = f"result_{uuid.uuid4().hex}.png"
         out.save(out_path, "PNG")
