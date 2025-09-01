@@ -223,6 +223,14 @@ def resolve_style(style_key, layout_key, banner_key):
             base = dict(YANGO_PRO_APP_STYLE[style_key])
             # deep copy nested size dict
             base["size"] = dict(base["size"])
+            
+            # Override font sizes for 1200x628 in Yango_pro_app and Yango_app layouts
+            if banner_key == "1200x628":
+                if style_key == "headline":
+                    base["size"]["1200x628"] = 84
+                elif style_key == "subline":
+                    base["size"]["1200x628"] = 32
+            
             font = load_font(base["font"], base["size"][banner_key])
             return base, font
     
@@ -494,11 +502,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             st, font = resolve_style("disclaimer", layout_key, banner_key)
             if layout_key in ["Yango_pro_app", "Yango_app"]:
                 # Yango_pro_app and Yango_app specific disclaimer positioning for 1200x628
+                # Move 32px left and 5px down
                 lines = wrap_with_limits(draw, disclaimer, font, 750, st.get("max_lines", 0), st.get("ellipsis", False))
-                disclaimer_y = 540  # 540px from top
+                disclaimer_y = 540 + 5  # Move 5px down
                 for line in lines:
                     lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                    draw_x = 200  # 200px from left edge
+                    draw_x = 200 - 32  # Move 32px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += lh + 10
             else:
@@ -528,8 +537,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # 1200x628 specific positioning
-            download_x = 200  # Move left by 60px from original position + 236px to the right - 40px to the left + 24px to the right
-            download_y = h - 40 - download_font.getbbox(download_phrase)[3] - 70  # Move up by 70px
+            download_x = 200 - 32  # Move 32px left from original position
+            download_y = h - 40 - download_font.getbbox(download_phrase)[3] - 70 + 18  # Move 18px down from original position
             
             # Draw the download phrase with appropriate text block width
             if banner_key == "1200x628":
@@ -741,13 +750,13 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 download_x = pad["left"] + 380
                 download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 240
             elif banner_key == "1200x1500":
-                # Move up by 110px and right by 220px - 100px = 120px
-                download_x = pad["left"] + 120
-                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110
+                # Move 20px left and 20px down from original position
+                download_x = pad["left"] + 120 - 20
+                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110 + 20
             elif banner_key == "1200x1200":
-                # Move up by 110px and right by 220px - 100px = 120px
-                download_x = pad["left"] + 120
-                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110
+                # Move 20px left and 20px down from original position
+                download_x = pad["left"] + 120 - 20
+                download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3] - 110 + 20
             else:
                 # Default positioning
                 download_x = pad["left"]
@@ -774,21 +783,21 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             
             if banner_key == "1200x1500":
                 # Disclaimer aligned left, offset: 274px from left edge and 1350px from top
-                # Text block ends 274px before the right edge
+                # Move 20px left and 20px down
                 disclaimer_width = w - 274 - 274  # Total width minus left and right offsets
                 lines = wrap_with_limits(draw, disclaimer, font, disclaimer_width, st.get("max_lines", 0), st.get("ellipsis", False))
-                disclaimer_y = 1350
+                disclaimer_y = 1350 + 20  # Move 20px down
                 for line in lines:
-                    draw_text_with_highlights(draw, line, font, 274, disclaimer_y, (255, 255, 255, 255))
+                    draw_text_with_highlights(draw, line, font, 274 - 20, disclaimer_y, (255, 255, 255, 255))  # Move 20px left
                     disclaimer_y += font.getbbox(line)[3] + 10
             elif banner_key == "1200x1200":
                 # Disclaimer aligned left, offset: 270px from left edge and 1060px from top
-                # Text block ends 200px before the right edge
+                # Move 20px left and 20px down
                 disclaimer_width = w - 270 - 200  # Total width minus left and right offsets
                 lines = wrap_with_limits(draw, disclaimer, font, disclaimer_width, st.get("max_lines", 0), st.get("ellipsis", False))
-                disclaimer_y = 1060
+                disclaimer_y = 1060 + 20  # Move 20px down
                 for line in lines:
-                    draw_text_with_highlights(draw, line, font, 270, disclaimer_y, (255, 255, 255, 255))
+                    draw_text_with_highlights(draw, line, font, 270 - 20, disclaimer_y, (255, 255, 255, 255))  # Move 20px left
                     disclaimer_y += font.getbbox(line)[3] + 10
         
         # Add disclaimer positioning for Yango_Red and Yango_pro_Red layouts
