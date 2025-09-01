@@ -366,7 +366,7 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     
     return y + font.getbbox(text)[3]
 
-def process_background_image(image, banner_key):
+def process_background_image(image, banner_key, language="English"):
     """Process 2890x2890 background image with specific scale and offset for each banner size"""
     # Define scale and offset values for each banner size
     background_configs = {
@@ -375,6 +375,10 @@ def process_background_image(image, banner_key):
         "1200x628": {"scale": 0.6, "offset_x": 267, "offset_y": 0},
         "1080x1920": {"scale": 0.8, "offset_x": 0, "offset_y": -196}
     }
+    
+    # Arabic-specific overrides
+    if language == "Arabic" and banner_key == "1200x628":
+        background_configs["1200x628"] = {"scale": 0.6, "offset_x": -267, "offset_y": 0}
     
     if banner_key not in background_configs:
         logger.error(f"Unknown banner key: {banner_key}")
@@ -444,8 +448,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
     # Apply overlay first (before text)
     if apply_overlay:
         # Use AR folder for Arabic language
-        overlay_folder = "AR" if language == "Arabic" else layout_key
-        ov_path = os.path.join("Overlay", overlay_folder, f"{banner_key}.png")
+        if language == "Arabic":
+            ov_path = os.path.join("Overlay", "AR", layout_key, f"{banner_key}.png")
+        else:
+            ov_path = os.path.join("Overlay", layout_key, f"{banner_key}.png")
         if os.path.exists(ov_path):
             ov = Image.open(ov_path).convert("RGBA").resize((w, h))
             bg = Image.alpha_composite(bg.convert("RGBA"), ov)
@@ -1121,7 +1127,7 @@ async def handle_layout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Open and process the image
         bg = Image.open(io.BytesIO(image_data)).convert("RGBA")
-        bg = process_background_image(bg, size)
+        bg = process_background_image(bg, size, language)
         
         # Apply overlay using the selected layout
         out = compose(bg, headline, subheadline, disclaimer, size, layout, apply_overlay=True, language=language)
@@ -1304,7 +1310,7 @@ async def render_image(
                 status_code=400
             )
         
-        bg = process_background_image(bg, banner_size)
+        bg = process_background_image(bg, banner_size, language)
         out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay, language)
         
         out_path = f"result_{uuid.uuid4().hex}.png"
