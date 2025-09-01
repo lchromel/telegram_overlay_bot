@@ -149,8 +149,8 @@ def normalize_text(text: str) -> str:
 def text_width(draw, text, font):
     return draw.textbbox((0, 0), text, font=font)[2]
 
-def detect_discount(text):
-    """Detect discount patterns in text"""
+def detect_highlights(text):
+    """Detect discount patterns and currency amounts in text"""
     import re
     
     logger.info(f"detect_discount called with text: '{text}'")
@@ -171,7 +171,18 @@ def detect_discount(text):
         r'\b\d+%\b',                               # Just percentage like 30%
     ]
     
-    for pattern in patterns:
+    # Currency patterns with ISO codes
+    currency_patterns = [
+        r'\b\d+(?:\.\d+)?\s*(?:AED|ZMW|OMR|GHS|XAF|XOF|CDF|NAD|ZAR|PKR|MZN|BOB|GTQ|PEN|AZN|AOA|ETB|COP|MAD|NPR)\b',  # Amount with ISO currency
+        r'\b(?:AED|ZMW|OMR|GHS|XAF|XOF|CDF|NAD|ZAR|PKR|MZN|BOB|GTQ|PEN|AZN|AOA|ETB|COP|MAD|NPR)\s*\d+(?:\.\d+)?\b',  # ISO currency with amount
+        r'\b\d+(?:\.\d+)?\s*(?:dirham|kwacha|rial|cedi|franc|shilling|dollar|quetzal|sol|manat|kwanza|birr|peso|dirham|rupee)\b',  # Amount with currency names
+        r'\b(?:dirham|kwacha|rial|cedi|franc|shilling|dollar|quetzal|sol|manat|kwanza|birr|peso|dirham|rupee)\s*\d+(?:\.\d+)?\b',  # Currency names with amount
+    ]
+    
+    # Combine all patterns
+    all_patterns = patterns + currency_patterns
+    
+    for pattern in all_patterns:
         matches = re.finditer(pattern, text, re.IGNORECASE)
         for match in matches:
             logger.info(f"Pattern '{pattern}' matched: '{match.group()}' at positions {match.start()}-{match.end()}")
@@ -279,7 +290,7 @@ def get_arabic_right_margin(banner_key):
     return arabic_right_margins.get(banner_key, 64)
 
 def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color=(227, 255, 116), discount_text_color=(0, 0, 0)):
-    """Draw text with discount highlighting"""
+    """Draw text with discount and currency highlighting"""
     logger.info(f"draw_text_with_highlights called with text: '{text}'")
     
     if not text.strip():
@@ -293,46 +304,46 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     if len(discount_text_color) == 4:
         discount_text_color = discount_text_color[:3]
     
-    # Detect discounts in the text
-    discounts = list(detect_discount(text))
+    # Detect discounts and currency amounts in the text
+    highlights = list(detect_highlights(text))
     
-    if discounts:
-        logger.info(f"Found discounts in text '{text}': {discounts}")
+    if highlights:
+        logger.info(f"Found highlights in text '{text}': {highlights}")
     else:
-        logger.info(f"No discounts found in text: '{text}'")
+        logger.info(f"No highlights found in text: '{text}'")
     
-    if not discounts:
-        # No discounts found, draw normal text
+    if not highlights:
+        # No highlights found, draw normal text
         draw.text((x, y), text, font=font, fill=fill_color)
         return y + font.getbbox(text)[3]
     
 
     
-    # Draw text with discount highlighting
+    # Draw text with highlighting
     current_x = x
     last_end = 0
     
-    for start, end, discount_text in discounts:
-        # Draw text before discount
+    for start, end, highlight_text in highlights:
+        # Draw text before highlight
         if start > last_end:
             before_text = text[last_end:start]
             draw.text((current_x, y), before_text, font=font, fill=fill_color)
             current_x += text_width(draw, before_text, font)
         
-        # Calculate discount background dimensions
-        discount_width = text_width(draw, discount_text, font)
-        discount_height = font.getbbox(discount_text)[3]
+        # Calculate highlight background dimensions
+        highlight_width = text_width(draw, highlight_text, font)
+        highlight_height = font.getbbox(highlight_text)[3]
         
-        # Draw discount background (rounded rectangle)
+        # Draw highlight background (rounded rectangle)
         bg_x = current_x
         bg_y = y
-        bg_width = discount_width
-        bg_height = discount_height
+        bg_width = highlight_width
+        bg_height = highlight_height
         
         # Create rounded rectangle background with correct color and corner radius
         try:
-            # Use the correct discount color: #E3FF74 (227, 255, 116)
-            correct_discount_color = (227, 255, 116)
+            # Use the correct highlight color: #E3FF74 (227, 255, 116)
+            correct_highlight_color = (227, 255, 116)
             
             # Create a temporary image for the rounded rectangle
             temp_img = Image.new('RGBA', (bg_width + 16, bg_height + 16), (0, 0, 0, 0))
@@ -342,24 +353,24 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
             temp_draw.rounded_rectangle(
                 [0, 0, bg_width + 15, bg_height + 15],
                 radius=16,
-                fill=correct_discount_color
+                fill=correct_highlight_color
             )
             
             # Paste the background onto the main image
             main_image = draw._image if hasattr(draw, '_image') else draw.im
             main_image.paste(temp_img, (bg_x - 8, bg_y - 8), temp_img)
-            logger.info(f"Successfully drew rounded rectangle for discount: '{discount_text}'")
+            logger.info(f"Successfully drew rounded rectangle for highlight: '{highlight_text}'")
         except Exception as e:
             logger.error(f"Failed to draw rounded rectangle: {e}, falling back to simple rectangle")
             # Fallback to simple rectangle with correct color
             draw.rectangle([bg_x - 8, bg_y - 8, bg_x + bg_width + 8, bg_y + bg_height + 8], fill=(227, 255, 116))
         
-        # Draw discount text in black
-        draw.text((current_x, y), discount_text, font=font, fill=discount_text_color)
-        current_x += discount_width
+        # Draw highlight text in black
+        draw.text((current_x, y), highlight_text, font=font, fill=discount_text_color)
+        current_x += highlight_width
         last_end = end
     
-    # Draw remaining text after last discount
+    # Draw remaining text after last highlight
     if last_end < len(text):
         remaining_text = text[last_end:]
         draw.text((current_x, y), remaining_text, font=font, fill=fill_color)
@@ -540,18 +551,20 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     else:
                         draw_x = 200 - 32  # Move 32px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                    disclaimer_y += lh + 10
+                    disclaimer_y += line_height_px(font, st["line_height"])
             else:
                 # Standard disclaimer positioning
                 lines = wrap_with_limits(draw, disclaimer, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
                 # Calculate total height of disclaimer block
                 total_height = sum([draw.textbbox((0, 0), line, font=font)[3] for line in lines]) + (len(lines)-1)*10
-                disclaimer_y = h - 40 - total_height
+                # Use 50px margin for 1080x1920, 40px for others
+                bottom_margin = 50 if banner_key == "1080x1920" else 40
+                disclaimer_y = h - bottom_margin - total_height
                 for line in lines:
                     lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                     draw_x = w - 40 - lw  # Right align with 40px margin
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                    disclaimer_y += lh + 10
+                    disclaimer_y += line_height_px(font, st["line_height"])
         
         # Add download app phrase for Yango_pro_app and Yango_app layouts
         if layout_key in ["Yango_pro_app", "Yango_app"]:
@@ -878,7 +891,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     else:
                         draw_x = 274 - 20  # Move 20px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                    disclaimer_y += lh + 10
+                    disclaimer_y += line_height_px(font, st["line_height"])
             elif banner_key == "1200x1200":
                 # Disclaimer positioning for 1200x1200
                 disclaimer_width = w - 270 - 200  # Total width minus left and right offsets
@@ -894,7 +907,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     else:
                         draw_x = 250  # Move 20px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                    disclaimer_y += lh + 10
+                    disclaimer_y += line_height_px(font, st["line_height"])
         
         # Add disclaimer positioning for Yango_Red and Yango_pro_Red layouts
         if layout_key in ["Yango_Red", "Yango_pro_Red"] and disclaimer:
@@ -909,7 +922,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     lw = text_width(draw, line, font)
                     draw_x = w - 40 - lw  # Right align with 40px margin
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                    disclaimer_y += font.getbbox(line)[3] + 10
+                    disclaimer_y += line_height_px(font, st["line_height"])
             elif banner_key == "1200x1500":
                 # Disclaimer aligned right, 80px margin from right edge and 80px from bottom
                 # Disclaimer block width: 700px
@@ -919,7 +932,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                     lw = text_width(draw, line, font)
                     draw_x = w - 80 - lw  # Right align with 80px margin
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
-                    disclaimer_y += font.getbbox(line)[3] + 10
+                    disclaimer_y += line_height_px(font, st["line_height"])
 
     return bg
 
@@ -1315,6 +1328,7 @@ def get_config():
         "endpoints": {
             "render": "/render",
             "render_json": "/render-json",
+            "render_json_file": "/render-json-file",
             "health": "/health",
             "layouts": "/layouts",
             "config": "/config"
@@ -1382,6 +1396,7 @@ async def render_image_json(request: Request):
         layout_type = data.get("layout_type", "Yango_photo")
         apply_overlay = data.get("apply_overlay", True)
         language = data.get("language", "English")
+        return_file = data.get("return_file", False)  # New parameter
         
         # Validate required fields
         if not image_base64:
@@ -1422,9 +1437,17 @@ async def render_image_json(request: Request):
         bg = process_background_image(bg, banner_size, language)
         out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay, language)
         
-        # Save and encode result
+        # Save result
         out_path = f"result_{uuid.uuid4().hex}.png"
         out.save(out_path, "PNG")
+        
+        # Return file if requested
+        if return_file:
+            return FileResponse(
+                out_path, 
+                media_type="image/png", 
+                filename=f"banner_{banner_size}_{layout_type}_{uuid.uuid4().hex[:8]}.png"
+            )
         
         # Read the result and encode as base64
         with open(out_path, "rb") as f:
@@ -1442,6 +1465,78 @@ async def render_image_json(request: Request):
             "layout": layout_type,
             "language": language
         })
+        
+    except Exception as e:
+        logger.error(f"Error rendering image: {str(e)}")
+        return JSONResponse(
+            {"error": f"Failed to render image: {str(e)}"}, 
+            status_code=500
+        )
+
+@app.post("/render-json-file")
+async def render_image_json_file(request: Request):
+    """Render image with JSON payload and return file (n8n-friendly)"""
+    try:
+        data = await request.json()
+        
+        # Extract parameters
+        image_base64 = data.get("image")
+        headline = data.get("headline", "")
+        subline = data.get("subline", "")
+        disclaimer = data.get("disclaimer", "")
+        banner_size = data.get("banner_size", "1200x1200")
+        layout_type = data.get("layout_type", "Yango_photo")
+        apply_overlay = data.get("apply_overlay", True)
+        language = data.get("language", "English")
+        
+        # Validate required fields
+        if not image_base64:
+            return JSONResponse(
+                {"error": "image field is required (base64 encoded)"}, 
+                status_code=400
+            )
+        
+        # Decode base64 image
+        try:
+            import base64
+            # Remove data URL prefix if present
+            if image_base64.startswith('data:image'):
+                image_base64 = image_base64.split(',')[1]
+            
+            image_data = base64.b64decode(image_base64)
+            bg = Image.open(io.BytesIO(image_data)).convert("RGBA")
+        except Exception as e:
+            return JSONResponse(
+                {"error": f"Invalid base64 image: {str(e)}"}, 
+                status_code=400
+            )
+        
+        # Validate banner size
+        if banner_size not in SIZES:
+            return JSONResponse(
+                {"error": f"Unknown banner_size {banner_size}"}, 
+                status_code=400
+            )
+        
+        # Check and resize image to 2890x2890 if needed
+        img_width, img_height = bg.size
+        if img_width != 2890 or img_height != 2890:
+            logger.info(f"Resizing image from {img_width}x{img_height} to 2890x2890")
+            bg = bg.resize((2890, 2890), Image.LANCZOS)
+        
+        # Process image
+        bg = process_background_image(bg, banner_size, language)
+        out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay, language)
+        
+        # Save result
+        out_path = f"result_{uuid.uuid4().hex}.png"
+        out.save(out_path, "PNG")
+        
+        return FileResponse(
+            out_path, 
+            media_type="image/png", 
+            filename=f"banner_{banner_size}_{layout_type}_{uuid.uuid4().hex[:8]}.png"
+        )
         
     except Exception as e:
         logger.error(f"Error rendering image: {str(e)}")
