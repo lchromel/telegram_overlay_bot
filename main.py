@@ -127,13 +127,82 @@ async def shutdown_event():
             logger.error(f"Error shutting down Telegram application: {e}")
 
 def load_font(path, size):
+    # First check font file integrity
+    if not check_font_file_integrity(path):
+        logger.error(f"Font file integrity check failed for {path}")
+        return ImageFont.load_default()
+    
     try:
-        return ImageFont.truetype(path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
-    except Exception:
+        # Try to load with RAQM layout engine first (best for Arabic/RTL text)
+        font = ImageFont.truetype(path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
+        logger.info(f"Successfully loaded font {path} with RAQM layout engine, size {size}")
+        
+        # Verify Arabic font capabilities
+        if "Arabic" in path or "arabic" in path.lower():
+            verify_arabic_font(font, path)
+        
+        return font
+    except Exception as e:
+        logger.warning(f"Failed to load font {path} with RAQM layout engine: {e}")
         try:
-            return ImageFont.truetype(path, size=size)
-        except Exception:
+            # Fallback to default layout engine
+            font = ImageFont.truetype(path, size=size)
+            logger.info(f"Successfully loaded font {path} with default layout engine, size {size}")
+            
+            # Verify Arabic font capabilities
+            if "Arabic" in path or "arabic" in path.lower():
+                verify_arabic_font(font, path)
+            
+            return font
+        except Exception as e2:
+            logger.error(f"Failed to load font {path} with default layout engine: {e2}")
+            logger.warning(f"Using default font for {path}")
             return ImageFont.load_default()
+
+def verify_arabic_font(font, path):
+    """Verify that the Arabic font contains required characters"""
+    try:
+        # Test some common Arabic characters
+        test_chars = "كن أنت السائق اكسب الآن"
+        missing_chars = []
+        
+        for char in test_chars:
+            if char.strip():  # Skip spaces
+                try:
+                    # Try to get the character's bounding box
+                    bbox = font.getbbox(char)
+                    if bbox == (0, 0, 0, 0):  # Invalid character
+                        missing_chars.append(char)
+                except Exception:
+                    missing_chars.append(char)
+        
+        if missing_chars:
+            logger.warning(f"Font {path} is missing Arabic characters: {missing_chars}")
+        else:
+            logger.info(f"Font {path} contains all tested Arabic characters")
+            
+    except Exception as e:
+        logger.error(f"Error verifying Arabic font {path}: {e}")
+
+def check_font_file_integrity(path):
+    """Check if the font file exists and is readable"""
+    import os
+    try:
+        if not os.path.exists(path):
+            logger.error(f"Font file does not exist: {path}")
+            return False
+        
+        file_size = os.path.getsize(path)
+        logger.info(f"Font file {path} exists, size: {file_size} bytes")
+        
+        if file_size == 0:
+            logger.error(f"Font file is empty: {path}")
+            return False
+            
+        return True
+    except Exception as e:
+        logger.error(f"Error checking font file {path}: {e}")
+        return False
 
 def is_rtl_text(s: str) -> bool:
     return any('\u0590' <= ch <= '\u08FF' for ch in s)  # Hebrew+Arabic ranges
@@ -141,9 +210,19 @@ def is_rtl_text(s: str) -> bool:
 def normalize_text(text: str) -> str:
     logger.info(f"normalize_text called with: '{text}'")
     if any('\u0600' <= ch <= '\u06FF' for ch in text):  # Arabic
-        text = arabic_reshaper.reshape(text)
-        text = get_display(text)
-        logger.info(f"normalize_text after Arabic processing: '{text}'")
+        try:
+            logger.info(f"Processing Arabic text: '{text}'")
+            # Reshape Arabic text for proper rendering
+            reshaped_text = arabic_reshaper.reshape(text)
+            logger.info(f"After reshaping: '{reshaped_text}'")
+            # Apply bidirectional algorithm for RTL text
+            processed_text = get_display(reshaped_text)
+            logger.info(f"After bidirectional processing: '{processed_text}'")
+            return processed_text
+        except Exception as e:
+            logger.error(f"Error processing Arabic text '{text}': {e}")
+            # Return original text if processing fails
+            return text
     return text
 
 def text_width(draw, text, font):
@@ -314,8 +393,28 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     
     if not highlights:
         # No highlights found, draw normal text
-        draw.text((x, y), text, font=font, fill=fill_color)
-        return y + font.getbbox(text)[3]
+        logger.info(f"Drawing normal text: '{text}' at position ({x}, {y}) with font {font.path if hasattr(font, 'path') else 'unknown'}")
+        try:
+            draw.text((x, y), text, font=font, fill=fill_color)
+            bbox = font.getbbox(text)
+            logger.info(f"Text bounding box: {bbox}")
+            return y + bbox[3]
+        except Exception as e:
+            logger.error(f"Error drawing text '{text}': {e}")
+            # Try to draw character by character to identify problematic characters
+            current_x = x
+            for i, char in enumerate(text):
+                try:
+                    char_bbox = font.getbbox(char)
+                    logger.info(f"Character '{char}' (U+{ord(char):04X}) bbox: {char_bbox}")
+                    if char_bbox != (0, 0, 0, 0):
+                        draw.text((current_x, y), char, font=font, fill=fill_color)
+                        current_x += char_bbox[2]
+                    else:
+                        logger.warning(f"Character '{char}' (U+{ord(char):04X}) has invalid bbox")
+                except Exception as char_e:
+                    logger.error(f"Error drawing character '{char}' (U+{ord(char):04X}): {char_e}")
+            return y + font.getbbox("A")[3]  # Use fallback height
     
 
     
