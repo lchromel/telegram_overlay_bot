@@ -268,6 +268,16 @@ def get_gap(layout, prev_key, next_key, banner_key):
             return gap
     return default
 
+def get_arabic_right_margin(banner_key):
+    """Get right margin for Arabic text based on banner size"""
+    arabic_right_margins = {
+        "1200x1200": 64,
+        "1200x1500": 64,
+        "1200x628": 40,
+        "1080x1920": 120
+    }
+    return arabic_right_margins.get(banner_key, 64)
+
 def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color=(227, 255, 116), discount_text_color=(0, 0, 0)):
     """Draw text with discount highlighting"""
     logger.info(f"draw_text_with_highlights called with text: '{text}'")
@@ -433,7 +443,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
     
     # Apply overlay first (before text)
     if apply_overlay:
-        ov_path = os.path.join("Overlay", layout_key, f"{banner_key}.png")
+        # Use AR folder for Arabic language
+        overlay_folder = "AR" if language == "Arabic" else layout_key
+        ov_path = os.path.join("Overlay", overlay_folder, f"{banner_key}.png")
         if os.path.exists(ov_path):
             ov = Image.open(ov_path).convert("RGBA").resize((w, h))
             bg = Image.alpha_composite(bg.convert("RGBA"), ov)
@@ -462,7 +474,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             for idx, line in enumerate(lines):
                 logger.info(f"Processing line {idx}: '{line}'")
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                if layout_key in ["Yango_pro_app", "Yango_app"]:
+                if language == "Arabic":
+                    # Right-align with Arabic right margin for 1200x628
+                    right_margin = get_arabic_right_margin(banner_key)
+                    draw_x = w - right_margin - lw
+                elif layout_key in ["Yango_pro_app", "Yango_app"]:
                     # Use left alignment with 48px margin for Yango_pro_app and Yango_app
                     draw_x = 48
                 else:
@@ -484,7 +500,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             line_spacing = int(font.size * 0.2)
             for idx, line in enumerate(lines):
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                if layout_key in ["Yango_pro_app", "Yango_app"]:
+                if language == "Arabic":
+                    # Right-align with Arabic right margin for 1200x628
+                    right_margin = get_arabic_right_margin(banner_key)
+                    draw_x = w - right_margin - lw
+                elif layout_key in ["Yango_pro_app", "Yango_app"]:
                     # Use left alignment with 48px margin for Yango_pro_app and Yango_app
                     draw_x = 48
                 else:
@@ -502,12 +522,16 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             st, font = resolve_style("disclaimer", layout_key, banner_key)
             if layout_key in ["Yango_pro_app", "Yango_app"]:
                 # Yango_pro_app and Yango_app specific disclaimer positioning for 1200x628
-                # Move 32px left and 5px down
                 lines = wrap_with_limits(draw, disclaimer, font, 750, st.get("max_lines", 0), st.get("ellipsis", False))
                 disclaimer_y = 540 + 5  # Move 5px down
                 for line in lines:
                     lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
-                    draw_x = 200 - 32  # Move 32px left from original position
+                    if language == "Arabic":
+                        # Right-align with Arabic right margin for 1200x628
+                        right_margin = get_arabic_right_margin(banner_key)
+                        draw_x = w - right_margin - lw
+                    else:
+                        draw_x = 200 - 32  # Move 32px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += lh + 10
             else:
@@ -550,7 +574,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 lines = wrap_with_limits(draw, download_phrase, download_font, 315, 2, False)
             for line in lines:
                 lw, lh = draw.textbbox((0, 0), line, font=download_font)[2:]
-                draw_x = download_x  # Left-aligned
+                if language == "Arabic":
+                    # Right-align with Arabic right margin for 1200x628
+                    right_margin = get_arabic_right_margin(banner_key)
+                    draw_x = w - right_margin - lw
+                else:
+                    draw_x = download_x  # Left-aligned
                 draw_text_with_highlights(draw, line, download_font, draw_x, download_y, (255, 255, 255, 255))
                 download_y += lh + 5
     else:
@@ -637,6 +666,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             for i, (lines, st, font, key) in enumerate(main_blocks):
                 lh = line_height_px(font, st["line_height"])
                 align = st.get("align", "left")
+                # Force right alignment for Arabic language
+                if language == "Arabic":
+                    align = "right"
                 # auto right align if RTL text and layout isn't explicitly left
                 join_text = " ".join(lines)
                 if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
@@ -649,7 +681,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                         draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
                     elif align == "right":
                         lw = text_width(draw, line, font)
-                        draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
+                        if language == "Arabic":
+                            # Use Arabic right margin
+                            right_margin = get_arabic_right_margin(banner_key)
+                            draw_text_with_highlights(draw, line, font, w - right_margin - lw, y, (255, 255, 255, 255))
+                        else:
+                            draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
                     else:
                         draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
                     y += lh
@@ -679,12 +716,18 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 # Process the filtered blocks for Yango_pro_app and Yango_app
                 for i, (lines, st, font, key) in enumerate(filtered_blocks):
                     lh = line_height_px(font, st["line_height"])
-                    # Get left margin from style configuration
-                    left_margin = st.get("left_margin", {}).get(banner_key, 150)
                     
                     for line in lines:
-                        # Left-align with margin from style configuration
-                        draw_text_with_highlights(draw, line, font, left_margin, y, (255, 255, 255, 255))
+                        if language == "Arabic":
+                            # Right-align with Arabic right margin
+                            lw = text_width(draw, line, font)
+                            right_margin = get_arabic_right_margin(banner_key)
+                            draw_text_with_highlights(draw, line, font, w - right_margin - lw, y, (255, 255, 255, 255))
+                        else:
+                            # Get left margin from style configuration
+                            left_margin = st.get("left_margin", {}).get(banner_key, 150)
+                            # Left-align with margin from style configuration
+                            draw_text_with_highlights(draw, line, font, left_margin, y, (255, 255, 255, 255))
                         y += lh
                     if i < len(gaps):
                         y += gaps[i]
@@ -710,6 +753,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 for i, (lines, st, font, key) in enumerate(blocks):
                     lh = line_height_px(font, st["line_height"])
                     align = st.get("align", "left")
+                    # Force right alignment for Arabic language
+                    if language == "Arabic":
+                        align = "right"
                     # auto right align if RTL text and layout isn't explicitly left
                     join_text = " ".join(lines)
                     if is_rtl_text(join_text) and anchor in ("top_right", "bottom_right"):
@@ -723,7 +769,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                             draw_text_with_highlights(draw, line, font, x + dx, y, (255, 255, 255, 255))
                         elif align == "right":
                             lw = text_width(draw, line, font)
-                            draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
+                            if language == "Arabic":
+                                # Use Arabic right margin
+                                right_margin = get_arabic_right_margin(banner_key)
+                                draw_text_with_highlights(draw, line, font, w - right_margin - lw, y, (255, 255, 255, 255))
+                            else:
+                                draw_text_with_highlights(draw, line, font, x + max_w - lw, y, (255, 255, 255, 255))
                         else:
                             draw_text_with_highlights(draw, line, font, x, y, (255, 255, 255, 255))
                         y += lh
@@ -773,7 +824,12 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             
             for line in lines:
                 lw, lh = draw.textbbox((0, 0), line, font=download_font)[2:]
-                draw_x = download_x  # Left-aligned
+                if language == "Arabic":
+                    # Right-align with Arabic right margin
+                    right_margin = get_arabic_right_margin(banner_key)
+                    draw_x = w - right_margin - lw
+                else:
+                    draw_x = download_x  # Left-aligned
                 draw_text_with_highlights(draw, line, download_font, draw_x, download_y, (255, 255, 255, 255))
                 download_y += lh + 5
         
@@ -782,23 +838,35 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             st, font = resolve_style("disclaimer", layout_key, banner_key)
             
             if banner_key == "1200x1500":
-                # Disclaimer aligned left, offset: 274px from left edge and 1350px from top
-                # Move 20px left and 20px down
+                # Disclaimer positioning for 1200x1500
                 disclaimer_width = w - 274 - 274  # Total width minus left and right offsets
                 lines = wrap_with_limits(draw, disclaimer, font, disclaimer_width, st.get("max_lines", 0), st.get("ellipsis", False))
                 disclaimer_y = 1350 + 20  # Move 20px down
                 for line in lines:
-                    draw_text_with_highlights(draw, line, font, 274 - 20, disclaimer_y, (255, 255, 255, 255))  # Move 20px left
-                    disclaimer_y += font.getbbox(line)[3] + 10
+                    lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
+                    if language == "Arabic":
+                        # Right-align with Arabic right margin
+                        right_margin = get_arabic_right_margin(banner_key)
+                        draw_x = w - right_margin - lw
+                    else:
+                        draw_x = 274 - 20  # Move 20px left from original position
+                    draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += lh + 10
             elif banner_key == "1200x1200":
-                # Disclaimer aligned left, offset: 270px from left edge and 1060px from top
-                # Move 20px left and 20px down
+                # Disclaimer positioning for 1200x1200
                 disclaimer_width = w - 270 - 200  # Total width minus left and right offsets
                 lines = wrap_with_limits(draw, disclaimer, font, disclaimer_width, st.get("max_lines", 0), st.get("ellipsis", False))
                 disclaimer_y = 1060 + 20  # Move 20px down
                 for line in lines:
-                    draw_text_with_highlights(draw, line, font, 270 - 20, disclaimer_y, (255, 255, 255, 255))  # Move 20px left
-                    disclaimer_y += font.getbbox(line)[3] + 10
+                    lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
+                    if language == "Arabic":
+                        # Right-align with Arabic right margin
+                        right_margin = get_arabic_right_margin(banner_key)
+                        draw_x = w - right_margin - lw
+                    else:
+                        draw_x = 270 - 20  # Move 20px left from original position
+                    draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
+                    disclaimer_y += lh + 10
         
         # Add disclaimer positioning for Yango_Red and Yango_pro_Red layouts
         if layout_key in ["Yango_Red", "Yango_pro_Red"] and disclaimer:
