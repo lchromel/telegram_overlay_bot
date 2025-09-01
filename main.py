@@ -746,12 +746,17 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 
                 for i, (lines, st, font, key) in enumerate(filtered_blocks):
                     lh = line_height_px(font, st["line_height"])
-                    align = st.get("align", "center")  # Force center alignment for Yango_Red layouts
                     
                     for line in lines:
-                        # Center-align text
-                        lw = text_width(draw, line, font)
-                        draw_x = (w - lw) // 2  # Center align
+                        if language == "Arabic":
+                            # Right-align text for Arabic in Yango_Red layouts
+                            lw = text_width(draw, line, font)
+                            right_margin = get_arabic_right_margin(banner_key)
+                            draw_x = w - right_margin - lw
+                        else:
+                            # Center-align text for non-Arabic
+                            lw = text_width(draw, line, font)
+                            draw_x = (w - lw) // 2  # Center align
                         draw_text_with_highlights(draw, line, font, draw_x, y, (255, 255, 255, 255))
                         y += lh
                     if i < len(gaps):
