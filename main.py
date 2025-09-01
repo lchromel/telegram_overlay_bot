@@ -864,7 +864,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                         right_margin = get_arabic_right_margin(banner_key)
                         draw_x = w - right_margin - lw
                     else:
-                        draw_x = 270 - 20  # Move 20px left from original position
+                        draw_x = 250  # Move 20px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
                     disclaimer_y += lh + 10
         
