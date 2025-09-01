@@ -519,16 +519,16 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             
             # Custom font sizes for download app phrase
             download_font_sizes = {
-                "1200x1200": 64,
-                "1200x1500": 64,
-                "1200x628": 48,
-                "1080x1920": 64
+                "1200x1200": 48,
+                "1200x1500": 48,
+                "1200x628": 40,
+                "1080x1920": 56
             }
             download_font_size = download_font_sizes.get(banner_key, 64)
             download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # 1200x628 specific positioning
-            download_x = 40 - 60 + 236 - 40 + 24  # Move left by 60px from original position + 236px to the right - 40px to the left + 24px to the right
+            download_x = 200  # Move left by 60px from original position + 236px to the right - 40px to the left + 24px to the right
             download_y = h - 40 - download_font.getbbox(download_phrase)[3] - 70  # Move up by 70px
             
             # Draw the download phrase with appropriate text block width
