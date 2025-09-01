@@ -1304,6 +1304,23 @@ def get_layouts():
     """Get available sizes and layouts"""
     return JSONResponse({"sizes": list(SIZES.keys()), "layouts": list(LAYOUTS.keys())})
 
+@app.get("/config")
+def get_config():
+    """Get full configuration for n8n integration"""
+    return JSONResponse({
+        "sizes": list(SIZES.keys()),
+        "layouts": list(LAYOUTS.keys()),
+        "languages": AVAILABLE_LANGUAGES,
+        "download_phrases": DOWNLOAD_APP_PHRASES,
+        "endpoints": {
+            "render": "/render",
+            "render_json": "/render-json",
+            "health": "/health",
+            "layouts": "/layouts",
+            "config": "/config"
+        }
+    })
+
 @app.post("/render")
 async def render_image(
     image: UploadFile = File(...),
@@ -1343,6 +1360,89 @@ async def render_image(
             media_type="image/png", 
             filename=os.path.basename(out_path)
         )
+    except Exception as e:
+        logger.error(f"Error rendering image: {str(e)}")
+        return JSONResponse(
+            {"error": f"Failed to render image: {str(e)}"}, 
+            status_code=500
+        )
+
+@app.post("/render-json")
+async def render_image_json(request: Request):
+    """Render image with JSON payload (n8n-friendly)"""
+    try:
+        data = await request.json()
+        
+        # Extract parameters
+        image_base64 = data.get("image")
+        headline = data.get("headline", "")
+        subline = data.get("subline", "")
+        disclaimer = data.get("disclaimer", "")
+        banner_size = data.get("banner_size", "1200x1200")
+        layout_type = data.get("layout_type", "Yango_photo")
+        apply_overlay = data.get("apply_overlay", True)
+        language = data.get("language", "English")
+        
+        # Validate required fields
+        if not image_base64:
+            return JSONResponse(
+                {"error": "image field is required (base64 encoded)"}, 
+                status_code=400
+            )
+        
+        # Decode base64 image
+        try:
+            import base64
+            # Remove data URL prefix if present
+            if image_base64.startswith('data:image'):
+                image_base64 = image_base64.split(',')[1]
+            
+            image_data = base64.b64decode(image_base64)
+            bg = Image.open(io.BytesIO(image_data)).convert("RGBA")
+        except Exception as e:
+            return JSONResponse(
+                {"error": f"Invalid base64 image: {str(e)}"}, 
+                status_code=400
+            )
+        
+        # Validate banner size
+        if banner_size not in SIZES:
+            return JSONResponse(
+                {"error": f"Unknown banner_size {banner_size}"}, 
+                status_code=400
+            )
+        
+        # Check and resize image to 2890x2890 if needed
+        img_width, img_height = bg.size
+        if img_width != 2890 or img_height != 2890:
+            logger.info(f"Resizing image from {img_width}x{img_height} to 2890x2890")
+            bg = bg.resize((2890, 2890), Image.LANCZOS)
+        
+        # Process image
+        bg = process_background_image(bg, banner_size, language)
+        out = compose(bg, headline, subline, disclaimer, banner_size, layout_type, apply_overlay, language)
+        
+        # Save and encode result
+        out_path = f"result_{uuid.uuid4().hex}.png"
+        out.save(out_path, "PNG")
+        
+        # Read the result and encode as base64
+        with open(out_path, "rb") as f:
+            result_data = f.read()
+            result_base64 = base64.b64encode(result_data).decode('utf-8')
+        
+        # Clean up
+        os.remove(out_path)
+        
+        return JSONResponse({
+            "success": True,
+            "image": f"data:image/png;base64,{result_base64}",
+            "filename": f"banner_{banner_size}_{layout_type}_{uuid.uuid4().hex[:8]}.png",
+            "size": banner_size,
+            "layout": layout_type,
+            "language": language
+        })
+        
     except Exception as e:
         logger.error(f"Error rendering image: {str(e)}")
         return JSONResponse(
