@@ -827,7 +827,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 download_y = h - pad["bottom"] - download_font.getbbox(download_phrase)[3]
             
             # Draw the download phrase with appropriate text block width
-            if banner_key in ["1200x1200", "1200x1500"]:
+            if language == "Arabic" and banner_key == "1080x1920":
+                # Use 260px width for Arabic in 1080x1920
+                lines = wrap_with_limits(draw, download_phrase, download_font, 260, 2, False)
+            elif banner_key in ["1200x1200", "1200x1500"]:
                 # No width limitation for 1200x1200 and 1200x1500
                 max_width = w - download_x - pad["right"]  # Use remaining width
                 lines = wrap_with_limits(draw, download_phrase, download_font, max_width, 2, False)
