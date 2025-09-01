@@ -533,9 +533,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 for line in lines:
                     lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                     if language == "Arabic":
-                        # Right-align with Arabic right margin for 1200x628
+                        # Right-align with Arabic right margin and apply Arabic-specific adjustments for 1200x628
                         right_margin = get_arabic_right_margin(banner_key)
-                        draw_x = w - right_margin - lw
+                        # Move 140px to the left for Arabic
+                        draw_x = w - right_margin - lw - 140
                     else:
                         draw_x = 200 - 32  # Move 32px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
@@ -581,9 +582,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             for line in lines:
                 lw, lh = draw.textbbox((0, 0), line, font=download_font)[2:]
                 if language == "Arabic":
-                    # Right-align with Arabic right margin for 1200x628
+                    # Right-align with Arabic right margin and apply Arabic-specific adjustments for 1200x628
                     right_margin = get_arabic_right_margin(banner_key)
-                    draw_x = w - right_margin - lw
+                    # Move 140px to the left for Arabic
+                    draw_x = w - right_margin - lw - 140
                 else:
                     draw_x = download_x  # Left-aligned
                 draw_text_with_highlights(draw, line, download_font, draw_x, download_y, (255, 255, 255, 255))
@@ -831,9 +833,19 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             for line in lines:
                 lw, lh = draw.textbbox((0, 0), line, font=download_font)[2:]
                 if language == "Arabic":
-                    # Right-align with Arabic right margin
+                    # Right-align with Arabic right margin and apply Arabic-specific adjustments
                     right_margin = get_arabic_right_margin(banner_key)
-                    draw_x = w - right_margin - lw
+                    if banner_key in ["1200x1200", "1200x1500"]:
+                        # Move 180px to the left for Arabic
+                        draw_x = w - right_margin - lw - 180
+                    elif banner_key == "1200x628":
+                        # Move 140px to the left for Arabic
+                        draw_x = w - right_margin - lw - 140
+                    elif banner_key == "1080x1920":
+                        # Move 180px to the left for Arabic
+                        draw_x = w - right_margin - lw - 180
+                    else:
+                        draw_x = w - right_margin - lw
                 else:
                     draw_x = download_x  # Left-aligned
                 draw_text_with_highlights(draw, line, download_font, draw_x, download_y, (255, 255, 255, 255))
@@ -851,9 +863,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 for line in lines:
                     lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                     if language == "Arabic":
-                        # Right-align with Arabic right margin
+                        # Right-align with Arabic right margin and apply Arabic-specific adjustments
                         right_margin = get_arabic_right_margin(banner_key)
-                        draw_x = w - right_margin - lw
+                        # Move 180px to the left for Arabic
+                        draw_x = w - right_margin - lw - 180
                     else:
                         draw_x = 274 - 20  # Move 20px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
@@ -866,9 +879,10 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 for line in lines:
                     lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                     if language == "Arabic":
-                        # Right-align with Arabic right margin
+                        # Right-align with Arabic right margin and apply Arabic-specific adjustments
                         right_margin = get_arabic_right_margin(banner_key)
-                        draw_x = w - right_margin - lw
+                        # Move 180px to the left for Arabic
+                        draw_x = w - right_margin - lw - 180
                     else:
                         draw_x = 250  # Move 20px left from original position
                     draw_text_with_highlights(draw, line, font, draw_x, disclaimer_y, (255, 255, 255, 255))
