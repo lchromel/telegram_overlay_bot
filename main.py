@@ -159,6 +159,87 @@ def load_font(path, size):
             logger.warning(f"Using default font for {path}")
             return ImageFont.load_default()
 
+def load_arabic_font_with_fallback(size):
+    """Load Arabic font with automatic fallback to system fonts if needed"""
+    # Priority list of Arabic fonts to try
+    arabic_fonts = [
+        "Fonts/YangoGroupHeadline-HeavyArabic.ttf",
+        "Fonts/YangoGroupText-Medium.ttf",
+        "/System/Library/Fonts/Arial.ttf",  # macOS system font with Arabic support
+        "/System/Library/Fonts/Helvetica.ttc",  # macOS system font
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux DejaVu
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Linux Liberation
+        "C:/Windows/Fonts/arial.ttf",  # Windows Arial
+        "C:/Windows/Fonts/calibri.ttf",  # Windows Calibri
+    ]
+    
+    for font_path in arabic_fonts:
+        try:
+            if os.path.exists(font_path):
+                font = ImageFont.truetype(font_path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
+                logger.info(f"Successfully loaded Arabic font: {font_path}")
+                
+                # Test if this font can render Arabic text
+                test_text = "كن أنت السائق اكسب الآن"
+                if can_render_arabic(font, test_text):
+                    logger.info(f"Font {font_path} can render Arabic text properly")
+                    return font
+                else:
+                    logger.warning(f"Font {font_path} cannot render Arabic text properly")
+                    continue
+        except Exception as e:
+            logger.warning(f"Failed to load font {font_path}: {e}")
+            continue
+    
+    # If no Arabic fonts work, try to use the default font
+    logger.warning("No suitable Arabic fonts found, using default font")
+    return ImageFont.load_default()
+
+def can_render_arabic(font, text):
+    """Check if a font can properly render Arabic text"""
+    try:
+        for char in text:
+            if char.strip():  # Skip spaces
+                bbox = font.getbbox(char)
+                if bbox == (0, 0, 0, 0):  # Invalid character
+                    return False
+        return True
+    except Exception:
+        return False
+
+def force_reload_arabic_font(size):
+    """Force reload Arabic font with different parameters to fix rendering issues"""
+    try:
+        # Try different font loading approaches
+        font_paths = [
+            "Fonts/YangoGroupHeadline-HeavyArabic.ttf",
+            "Fonts/YangoGroupText-Medium.ttf"
+        ]
+        
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    # Try with different layout engines and parameters
+                    font = ImageFont.truetype(font_path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
+                    logger.info(f"Force reloaded Arabic font: {font_path} with RAQM")
+                    return font
+                except Exception:
+                    try:
+                        # Try without layout engine
+                        font = ImageFont.truetype(font_path, size=size)
+                        logger.info(f"Force reloaded Arabic font: {font_path} without layout engine")
+                        return font
+                    except Exception:
+                        continue
+        
+        # If all else fails, try system fonts
+        logger.warning("All Arabic fonts failed, trying system fonts")
+        return load_arabic_font_with_fallback(size)
+        
+    except Exception as e:
+        logger.error(f"Error in force_reload_arabic_font: {e}")
+        return ImageFont.load_default()
+
 def verify_arabic_font(font, path):
     """Verify that the Arabic font contains required characters"""
     try:
@@ -306,7 +387,7 @@ def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
                 lines[-1] = ell
     return lines
 
-def resolve_style(style_key, layout_key, banner_key):
+def resolve_style(style_key, layout_key, banner_key, language="English"):
     # Use Yango_pro_app style for specific banner sizes
     if layout_key in ["Yango_pro_app", "Yango_app"] and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
         if style_key in YANGO_PRO_APP_STYLE:
@@ -321,7 +402,11 @@ def resolve_style(style_key, layout_key, banner_key):
                 elif style_key == "subline":
                     base["size"]["1200x628"] = 32
             
-            font = load_font(base["font"], base["size"][banner_key])
+            # Use Arabic font fallback for Arabic language
+            if language == "Arabic":
+                font = load_arabic_font_with_fallback(base["size"][banner_key])
+            else:
+                font = load_font(base["font"], base["size"][banner_key])
             return base, font
     
     # Use standard base style for all other cases
@@ -337,7 +422,12 @@ def resolve_style(style_key, layout_key, banner_key):
             base["size"].update(v)
         else:
             base[k] = v
-    font = load_font(base["font"], base["size"][banner_key])
+    
+    # Use Arabic font fallback for Arabic language
+    if language == "Arabic":
+        font = load_arabic_font_with_fallback(base["size"][banner_key])
+    else:
+        font = load_font(base["font"], base["size"][banner_key])
     return base, font
 
 def line_height_px(font, lh_factor):
@@ -412,6 +502,20 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
                         current_x += char_bbox[2]
                     else:
                         logger.warning(f"Character '{char}' (U+{ord(char):04X}) has invalid bbox")
+                        # Try to force reload the font for this character
+                        if any('\u0600' <= ch <= '\u06FF' for ch in char):  # Arabic character
+                            logger.info(f"Attempting to force reload Arabic font for character '{char}'")
+                            try:
+                                new_font = force_reload_arabic_font(font.size)
+                                new_bbox = new_font.getbbox(char)
+                                if new_bbox != (0, 0, 0, 0):
+                                    draw.text((current_x, y), char, font=new_font, fill=fill_color)
+                                    current_x += new_bbox[2]
+                                    logger.info(f"Successfully rendered character '{char}' with reloaded font")
+                                else:
+                                    logger.error(f"Character '{char}' still has invalid bbox after font reload")
+                            except Exception as reload_e:
+                                logger.error(f"Failed to reload font for character '{char}': {reload_e}")
                 except Exception as char_e:
                     logger.error(f"Error drawing character '{char}' (U+{ord(char):04X}): {char_e}")
             return y + font.getbbox("A")[3]  # Use fallback height
@@ -581,7 +685,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         
         # Process headline
         if headline:
-            st, font = resolve_style("headline", layout_key, banner_key)
+            st, font = resolve_style("headline", layout_key, banner_key, language)
             lines = wrap_with_limits(draw, headline, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
             logger.info(f"1200x628 headline wrapped into lines: {lines}")
             logger.info(f"Original headline: '{headline}'")
@@ -609,7 +713,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         
         # Process subline (subtitle)
         if subline:
-            st, font = resolve_style("subline", layout_key, banner_key)
+            st, font = resolve_style("subline", layout_key, banner_key, language)
             subtitle_block_width = 460
             subtitle_block_x = 80
             lines = wrap_with_limits(draw, subline, font, subtitle_block_width, st.get("max_lines", 0), st.get("ellipsis", False))
@@ -635,7 +739,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         
         # Process disclaimer separately
         if disclaimer:
-            st, font = resolve_style("disclaimer", layout_key, banner_key)
+            st, font = resolve_style("disclaimer", layout_key, banner_key, language)
             if layout_key in ["Yango_pro_app", "Yango_app"]:
                 # Yango_pro_app and Yango_app specific disclaimer positioning for 1200x628
                 lines = wrap_with_limits(draw, disclaimer, font, 750, st.get("max_lines", 0), st.get("ellipsis", False))
@@ -715,7 +819,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             raw = content_map.get(key, "")
             if not raw.strip():
                 continue
-            st, font = resolve_style(key, layout_key, banner_key)
+            st, font = resolve_style(key, layout_key, banner_key, language)
             lines = wrap_with_limits(draw, raw, font, max_w, st.get("max_lines", 0), st.get("ellipsis", False))
             blocks.append((lines, st, font, key))
 
@@ -973,7 +1077,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         
         # Add disclaimer positioning for Yango_pro_app and Yango_app layouts in standard positioning
         if layout_key in ["Yango_pro_app", "Yango_app"] and disclaimer:
-            st, font = resolve_style("disclaimer", layout_key, banner_key)
+            st, font = resolve_style("disclaimer", layout_key, banner_key, language)
             
             if banner_key == "1200x1500":
                 # Disclaimer positioning for 1200x1500
@@ -1010,7 +1114,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         
         # Add disclaimer positioning for Yango_Red and Yango_pro_Red layouts
         if layout_key in ["Yango_Red", "Yango_pro_Red"] and disclaimer:
-            st, font = resolve_style("disclaimer", layout_key, banner_key)
+            st, font = resolve_style("disclaimer", layout_key, banner_key, language)
             
             if banner_key == "1200x1200":
                 # Disclaimer aligned right, 40px margin from right edge and 40px from bottom
