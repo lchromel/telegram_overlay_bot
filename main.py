@@ -127,268 +127,31 @@ async def shutdown_event():
             logger.error(f"Error shutting down Telegram application: {e}")
 
 def load_font(path, size):
-    logger.info(f"=== FONT LOADING DEBUG ===")
-    logger.info(f"Attempting to load font: {path} with size: {size}")
-    
-    # First check font file integrity
-    if not check_font_file_integrity(path):
-        logger.error(f"Font file integrity check failed for {path}")
-        return ImageFont.load_default()
-    
     try:
-        # Try to load with RAQM layout engine first (best for Arabic/RTL text)
-        logger.info(f"Trying RAQM layout engine for {path}")
-        font = ImageFont.truetype(path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
-        logger.info(f"✓ Successfully loaded font {path} with RAQM layout engine, size {size}")
-        
-        # Verify Arabic font capabilities
-        if "Arabic" in path or "arabic" in path.lower():
-            verify_arabic_font(font, path)
-        
-        return font
-    except Exception as e:
-        logger.warning(f"✗ Failed to load font {path} with RAQM layout engine: {e}")
+        return ImageFont.truetype(path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
+    except Exception:
         try:
-            # Fallback to default layout engine
-            logger.info(f"Trying default layout engine for {path}")
-            font = ImageFont.truetype(path, size=size)
-            logger.info(f"✓ Successfully loaded font {path} with default layout engine, size {size}")
-            
-            # Verify Arabic font capabilities
-            if "Arabic" in path or "arabic" in path.lower():
-                verify_arabic_font(font, path)
-            
-            return font
-        except Exception as e2:
-            logger.error(f"✗ Failed to load font {path} with default layout engine: {e2}")
-            logger.warning(f"Using default font for {path}")
+            return ImageFont.truetype(path, size=size)
+        except Exception:
             return ImageFont.load_default()
 
-def load_arabic_font_with_fallback(size):
-    """Load Arabic font with automatic fallback to system fonts if needed"""
-    # First try the original Yango Arabic fonts - these should work
-    primary_fonts = [
-        "Fonts/YangoGroupHeadline-HeavyArabic.ttf",
-        "Fonts/YangoGroupText-Medium.ttf"
-    ]
-    
-    for font_path in primary_fonts:
-        try:
-            if os.path.exists(font_path):
-                # Try with RAQM first, then fallback to default
-                try:
-                    font = ImageFont.truetype(font_path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
-                    logger.info(f"Successfully loaded Arabic font with RAQM: {font_path}")
-                except Exception:
-                    font = ImageFont.truetype(font_path, size=size)
-                    logger.info(f"Successfully loaded Arabic font without RAQM: {font_path}")
-                
-                # Simple test - just check if the font loads without error
-                test_char = "ا"  # Simple Arabic character
-                try:
-                    bbox = font.getbbox(test_char)
-                    if bbox != (0, 0, 0, 0):
-                        logger.info(f"Font {font_path} loaded successfully for Arabic")
-                        return font
-                    else:
-                        logger.warning(f"Font {font_path} has invalid bbox for Arabic character")
-                except Exception as e:
-                    logger.warning(f"Font {font_path} failed bbox test: {e}")
-                    continue
-        except Exception as e:
-            logger.warning(f"Failed to load font {font_path}: {e}")
-            continue
-    
-    # If primary fonts fail, try system fonts
-    logger.warning("Primary Arabic fonts failed, trying system fonts")
-    system_fonts = [
-        "/System/Library/Fonts/Arial.ttf",  # macOS
-        "/System/Library/Fonts/Helvetica.ttc",  # macOS
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
-        "C:/Windows/Fonts/arial.ttf",  # Windows
-    ]
-    
-    for font_path in system_fonts:
-        try:
-            if os.path.exists(font_path):
-                font = ImageFont.truetype(font_path, size=size)
-                logger.info(f"Loaded system font: {font_path}")
-                return font
-        except Exception as e:
-            logger.warning(f"Failed to load system font {font_path}: {e}")
-            continue
-    
-    # Last resort - use the original font loading method
-    logger.warning("All Arabic font attempts failed, using original font loading")
-    try:
-        return ImageFont.truetype("Fonts/YangoGroupHeadline-HeavyArabic.ttf", size=size)
-    except Exception as e:
-        logger.error(f"Even original font loading failed: {e}")
-        return ImageFont.load_default()
 
-def can_render_arabic(font, text):
-    """Check if a font can properly render Arabic text"""
-    try:
-        for char in text:
-            if char.strip():  # Skip spaces
-                bbox = font.getbbox(char)
-                if bbox == (0, 0, 0, 0):  # Invalid character
-                    return False
-        return True
-    except Exception:
-        return False
 
-def force_reload_arabic_font(size):
-    """Force reload Arabic font with different parameters to fix rendering issues"""
-    try:
-        # Try different font loading approaches
-        font_paths = [
-            "Fonts/YangoGroupHeadline-HeavyArabic.ttf",
-            "Fonts/YangoGroupText-Medium.ttf"
-        ]
-        
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    # Try with different layout engines and parameters
-                    font = ImageFont.truetype(font_path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
-                    logger.info(f"Force reloaded Arabic font: {font_path} with RAQM")
-                    return font
-                except Exception:
-                    try:
-                        # Try without layout engine
-                        font = ImageFont.truetype(font_path, size=size)
-                        logger.info(f"Force reloaded Arabic font: {font_path} without layout engine")
-                        return font
-                    except Exception:
-                        continue
-        
-        # If all else fails, try system fonts
-        logger.warning("All Arabic fonts failed, trying system fonts")
-        return load_arabic_font_with_fallback(size)
-        
-    except Exception as e:
-        logger.error(f"Error in force_reload_arabic_font: {e}")
-        return ImageFont.load_default()
 
-def verify_arabic_font(font, path):
-    """Verify that the Arabic font contains required characters"""
-    logger.info(f"=== ARABIC FONT VERIFICATION ===")
-    logger.info(f"Verifying font: {path}")
-    logger.info(f"Font object: {font}")
-    logger.info(f"Font size: {font.size if hasattr(font, 'size') else 'unknown'}")
-    
-    try:
-        # Test some common Arabic characters
-        test_chars = "كن أنت السائق اكسب الآن"
-        missing_chars = []
-        working_chars = []
-        
-        logger.info(f"Testing Arabic characters: {test_chars}")
-        
-        for char in test_chars:
-            if char.strip():  # Skip spaces
-                try:
-                    # Try to get the character's bounding box
-                    bbox = font.getbbox(char)
-                    logger.info(f"Character '{char}' (U+{ord(char):04X}) bbox: {bbox}")
-                    
-                    if bbox == (0, 0, 0, 0):  # Invalid character
-                        missing_chars.append(char)
-                        logger.warning(f"✗ Character '{char}' has invalid bbox")
-                    else:
-                        working_chars.append(char)
-                        logger.info(f"✓ Character '{char}' has valid bbox: {bbox}")
-                except Exception as e:
-                    missing_chars.append(char)
-                    logger.error(f"✗ Error testing character '{char}': {e}")
-        
-        if missing_chars:
-            logger.warning(f"Font {path} is missing {len(missing_chars)} Arabic characters: {missing_chars}")
-        else:
-            logger.info(f"✓ Font {path} contains all tested Arabic characters")
-        
-        logger.info(f"Working characters: {working_chars}")
-        logger.info(f"Missing characters: {missing_chars}")
-            
-    except Exception as e:
-        logger.error(f"Error verifying Arabic font {path}: {e}")
 
-def check_font_file_integrity(path):
-    """Check if the font file exists and is readable"""
-    import os
-    try:
-        if not os.path.exists(path):
-            logger.error(f"Font file does not exist: {path}")
-            return False
-        
-        file_size = os.path.getsize(path)
-        logger.info(f"Font file {path} exists, size: {file_size} bytes")
-        
-        if file_size == 0:
-            logger.error(f"Font file is empty: {path}")
-            return False
-            
-        return True
-    except Exception as e:
-        logger.error(f"Error checking font file {path}: {e}")
-        return False
 
-def verify_font_usage(font, text, language):
-    """Verify that the font is actually being used and can render the text"""
-    logger.info(f"=== FONT USAGE VERIFICATION ===")
-    logger.info(f"Language: {language}")
-    logger.info(f"Text to render: '{text}'")
-    logger.info(f"Font path: {font.path if hasattr(font, 'path') else 'unknown'}")
-    logger.info(f"Font size: {font.size if hasattr(font, 'size') else 'unknown'}")
-    
-    # Test individual characters
-    if language == "Arabic":
-        logger.info("Testing Arabic text rendering...")
-        for char in text:
-            if char.strip():
-                try:
-                    bbox = font.getbbox(char)
-                    if bbox == (0, 0, 0, 0):
-                        logger.error(f"✗ Arabic character '{char}' (U+{ord(char):04X}) cannot be rendered by this font")
-                    else:
-                        logger.info(f"✓ Arabic character '{char}' (U+{ord(char):04X}) can be rendered, bbox: {bbox}")
-                except Exception as e:
-                    logger.error(f"✗ Error testing Arabic character '{char}': {e}")
-    
-    # Test the full text
-    try:
-        full_bbox = font.getbbox(text)
-        logger.info(f"Full text bbox: {full_bbox}")
-        if full_bbox == (0, 0, 0, 0):
-            logger.error(f"✗ Font cannot render the full text '{text}'")
-            return False
-        else:
-            logger.info(f"✓ Font can render the full text '{text}'")
-            return True
-    except Exception as e:
-        logger.error(f"✗ Error testing full text: {e}")
-        return False
+
+
+
+
 
 def is_rtl_text(s: str) -> bool:
     return any('\u0590' <= ch <= '\u08FF' for ch in s)  # Hebrew+Arabic ranges
 
 def normalize_text(text: str) -> str:
-    logger.info(f"normalize_text called with: '{text}'")
     if any('\u0600' <= ch <= '\u06FF' for ch in text):  # Arabic
-        try:
-            logger.info(f"Processing Arabic text: '{text}'")
-            # Reshape Arabic text for proper rendering
-            reshaped_text = arabic_reshaper.reshape(text)
-            logger.info(f"After reshaping: '{reshaped_text}'")
-            # Apply bidirectional algorithm for RTL text
-            processed_text = get_display(reshaped_text)
-            logger.info(f"After bidirectional processing: '{processed_text}'")
-            return processed_text
-        except Exception as e:
-            logger.error(f"Error processing Arabic text '{text}': {e}")
-            # Return original text if processing fails
-            return text
+        text = arabic_reshaper.reshape(text)
+        text = get_display(text)
     return text
 
 def text_width(draw, text, font):
@@ -434,11 +197,8 @@ def detect_highlights(text):
             yield match.start(), match.end(), match.group()
 
 def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
-    logger.info(f"wrap_with_limits called with text: '{text}', max_width: {max_width}")
     text = normalize_text(text)
-    logger.info(f"After normalization: '{text}'")
     words = text.split()
-    logger.info(f"Words after splitting: {words}")
     lines = []
     curr = ""
     for w in words:
@@ -453,8 +213,26 @@ def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
             pass
     if curr:
         lines.append(curr)
-    
-    logger.info(f"Final wrapped lines: {lines}")
+
+    # Truncate lines to max_lines
+    if max_lines and len(lines) > max_lines:
+        lines = lines[:max_lines]
+
+    # Apply ellipsis to last line if needed
+    if ellipsis and lines:
+        last = lines[-1]
+        ell = "…"
+        while text_width(draw, last, font) > max_width and len(last) > 0:
+            last = last[:-1]
+        # now ensure ellipsis fits
+        while text_width(draw, last + ell, font) > max_width and len(last) > 0:
+            last = last[:-1]
+        if last != lines[-1]:
+            lines[-1] = last + ell
+        else:
+            # if still overflowing (rare), append ellipsis safely
+            if text_width(draw, last, font) > max_width:
+                lines[-1] = ell
     return lines
 
     # Truncate lines to max_lines
@@ -586,58 +364,8 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     
     if not highlights:
         # No highlights found, draw normal text
-        logger.info(f"=== TEXT DRAWING DEBUG ===")
-        logger.info(f"Drawing text: '{text}' at position ({x}, {y})")
-        logger.info(f"Font info: {font.path if hasattr(font, 'path') else 'unknown'}")
-        logger.info(f"Font size: {font.size if hasattr(font, 'size') else 'unknown'}")
-        logger.info(f"Font object: {font}")
-        
-        # Verify font can render the text before drawing
-        try:
-            test_bbox = font.getbbox(text)
-            logger.info(f"Font test bbox for text '{text}': {test_bbox}")
-            if test_bbox == (0, 0, 0, 0):
-                logger.error(f"✗ Font cannot render text '{text}' - bbox is (0,0,0,0)")
-            else:
-                logger.info(f"✓ Font can render text '{text}' - bbox: {test_bbox}")
-        except Exception as e:
-            logger.error(f"✗ Error testing font with text '{text}': {e}")
-        
-        try:
-            draw.text((x, y), text, font=font, fill=fill_color)
-            bbox = font.getbbox(text)
-            logger.info(f"✓ Successfully drew text, bounding box: {bbox}")
-            return y + bbox[3]
-        except Exception as e:
-            logger.error(f"Error drawing text '{text}': {e}")
-            # Try to draw character by character to identify problematic characters
-            current_x = x
-            for i, char in enumerate(text):
-                try:
-                    char_bbox = font.getbbox(char)
-                    logger.info(f"Character '{char}' (U+{ord(char):04X}) bbox: {char_bbox}")
-                    if char_bbox != (0, 0, 0, 0):
-                        draw.text((current_x, y), char, font=font, fill=fill_color)
-                        current_x += char_bbox[2]
-                    else:
-                        logger.warning(f"Character '{char}' (U+{ord(char):04X}) has invalid bbox")
-                        # Try to force reload the font for this character
-                        if any('\u0600' <= ch <= '\u06FF' for ch in char):  # Arabic character
-                            logger.info(f"Attempting to force reload Arabic font for character '{char}'")
-                            try:
-                                new_font = force_reload_arabic_font(font.size)
-                                new_bbox = new_font.getbbox(char)
-                                if new_bbox != (0, 0, 0, 0):
-                                    draw.text((current_x, y), char, font=new_font, fill=fill_color)
-                                    current_x += new_bbox[2]
-                                    logger.info(f"Successfully rendered character '{char}' with reloaded font")
-                                else:
-                                    logger.error(f"Character '{char}' still has invalid bbox after font reload")
-                            except Exception as reload_e:
-                                logger.error(f"Failed to reload font for character '{char}': {reload_e}")
-                except Exception as char_e:
-                    logger.error(f"Error drawing character '{char}' (U+{ord(char):04X}): {char_e}")
-            return y + font.getbbox("A")[3]  # Use fallback height
+        draw.text((x, y), text, font=font, fill=fill_color)
+        return y + font.getbbox(text)[3]
     
 
     
@@ -804,21 +532,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         
         # Process headline
         if headline:
-            logger.info(f"Processing headline: '{headline}' with language: '{language}'")
             st, font = resolve_style("headline", layout_key, banner_key, language)
-            logger.info(f"Resolved style for headline: {st}")
-            logger.info(f"Font loaded: {font.path if hasattr(font, 'path') else 'unknown'}")
-            
-            # Verify font can render the text
-            verify_font_usage(font, headline, language)
-            
             lines = wrap_with_limits(draw, headline, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
-            logger.info(f"1200x628 headline wrapped into lines: {lines}")
-            logger.info(f"Original headline: '{headline}'")
             line_spacing = int(font.size * 0.15)
             
             for idx, line in enumerate(lines):
-                logger.info(f"Processing line {idx}: '{line}'")
                 lw, lh = draw.textbbox((0, 0), line, font=font)[2:]
                 if language == "Arabic":
                     # Right-align with Arabic right margin for 1200x628
