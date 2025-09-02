@@ -349,8 +349,11 @@ def detect_highlights(text):
             yield match.start(), match.end(), match.group()
 
 def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
+    logger.info(f"wrap_with_limits called with text: '{text}', max_width: {max_width}")
     text = normalize_text(text)
+    logger.info(f"After normalization: '{text}'")
     words = text.split()
+    logger.info(f"Words after splitting: {words}")
     lines = []
     curr = ""
     for w in words:
@@ -365,6 +368,9 @@ def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
             pass
     if curr:
         lines.append(curr)
+    
+    logger.info(f"Final wrapped lines: {lines}")
+    return lines
 
     # Truncate lines to max_lines
     if max_lines and len(lines) > max_lines:
@@ -685,7 +691,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
         
         # Process headline
         if headline:
+            logger.info(f"Processing headline: '{headline}' with language: '{language}'")
             st, font = resolve_style("headline", layout_key, banner_key, language)
+            logger.info(f"Resolved style for headline: {st}")
+            logger.info(f"Font loaded: {font.path if hasattr(font, 'path') else 'unknown'}")
+            
             lines = wrap_with_limits(draw, headline, font, block_width, st.get("max_lines", 0), st.get("ellipsis", False))
             logger.info(f"1200x628 headline wrapped into lines: {lines}")
             logger.info(f"Original headline: '{headline}'")
@@ -781,7 +791,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 "1080x1920": 56
             }
             download_font_size = download_font_sizes.get(banner_key, 64)
-            download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
+            # Use Arabic-aware font loading for download phrase
+            if language == "Arabic":
+                download_font = load_arabic_font_with_fallback(download_font_size)
+            else:
+                download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # 1200x628 specific positioning
             download_x = 200 - 32  # Move 32px left from original position
@@ -1022,7 +1036,11 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
                 "1080x1920": 64
             }
             download_font_size = download_font_sizes.get(banner_key, 64)
-            download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
+            # Use Arabic-aware font loading for download phrase
+            if language == "Arabic":
+                download_font = load_arabic_font_with_fallback(download_font_size)
+            else:
+                download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
             # Position based on banner size
             if banner_key == "1080x1920":
