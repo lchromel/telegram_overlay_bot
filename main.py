@@ -288,7 +288,6 @@ def detect_highlights(text):
         r'\b(?:бесплатно|free)\b',                 # бесплатно, free
         r'\b(?:подарок|gift)\b',                   # подарок, gift
         r'\b(?:акция|sale)\b',                     # акция, sale
-        r'\b\d+%\b',                               # Just percentage like 30%
     ]
     
     # Currency patterns with ISO codes
@@ -372,10 +371,21 @@ def resolve_style(style_key, layout_key, banner_key, language="English"):
                     logger.warning(f"Original Arabic font loading failed: {e}, using default font")
                     font = ImageFont.load_default()
             else:
-                font = load_font(base["font"], base["size"][banner_key])
+                try:
+                    font = load_font(base["font"], base["size"][banner_key])
+                except Exception as e:
+                    logger.error(f"Failed to load font for Yango_pro_app style '{style_key}': {e}")
+                    logger.error(f"Font path: {base.get('font', 'NOT_FOUND')}")
+                    logger.error(f"Font size: {base['size'].get(banner_key, 'NOT_FOUND')}")
+                    font = ImageFont.load_default()
             return base, font
     
     # Use standard base style for all other cases
+    if style_key not in BASE_STYLE:
+        logger.error(f"Style key '{style_key}' not found in BASE_STYLE. Available keys: {list(BASE_STYLE.keys())}")
+        # Return a default style to prevent crashes
+        return {"size": {"1200x1200": 24, "1200x1500": 24, "1200x628": 24, "1080x1920": 24}, "line_height": 1.2}, ImageFont.load_default()
+    
     base = dict(BASE_STYLE[style_key])
     # deep copy nested size dict
     base["size"] = dict(base["size"])
@@ -389,18 +399,24 @@ def resolve_style(style_key, layout_key, banner_key, language="English"):
         else:
             base[k] = v
     
-            # Use Arabic font loading for Arabic language
-        if language == "Arabic":
-            # For Arabic, try to use the original font loading method first
-            try:
-                font = load_font(base["font"], base["size"][banner_key])
-                logger.info(f"Successfully loaded Arabic font using original method: {base['font']}")
-            except Exception as e:
-                logger.warning(f"Original Arabic font loading failed: {e}, using default font")
-                font = ImageFont.load_default()
-        else:
+    # Use Arabic font loading for Arabic language
+    if language == "Arabic":
+        # For Arabic, try to use the original font loading method first
+        try:
             font = load_font(base["font"], base["size"][banner_key])
-        return base, font
+            logger.info(f"Successfully loaded Arabic font using original method: {base['font']}")
+        except Exception as e:
+            logger.warning(f"Original Arabic font loading failed: {e}, using default font")
+            font = ImageFont.load_default()
+    else:
+        try:
+            font = load_font(base["font"], base["size"][banner_key])
+        except Exception as e:
+            logger.error(f"Failed to load font for style '{style_key}': {e}")
+            logger.error(f"Font path: {base.get('font', 'NOT_FOUND')}")
+            logger.error(f"Font size: {base['size'].get(banner_key, 'NOT_FOUND')}")
+            font = ImageFont.load_default()
+    return base, font
 
 def line_height_px(font, lh_factor):
     ascent, descent = font.getmetrics()
