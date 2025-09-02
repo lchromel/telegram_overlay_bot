@@ -272,7 +272,7 @@ def detect_highlights(text):
     """Detect discount patterns and currency amounts in text"""
     import re
     
-    logger.info(f"detect_discount called with text: '{text}'")
+    logger.info(f"detect_highlights called with text: '{text}'")
     
     # Test with a simple case first
     if "30%" in text:
@@ -280,8 +280,9 @@ def detect_highlights(text):
     
     # Common discount patterns
     patterns = [
-        r'\b\d+%?\s*(?:скидка|discount|off|%)\b',  # 20% скидка, 50% off, etc.
-        r'\b(?:скидка|discount|off)\s*\d+%?\b',    # скидка 20%, discount 50%, etc.
+        r'\b\d+%\b',                               # Just percentage like 30% (MUST BE FIRST!)
+        r'\b\d+%?\s*(?:скидка|discount|off)\b',   # 20% скидка, 50% off, etc.
+        r'\b(?:скидка|discount|off)\s*\d+%?\b',   # скидка 20%, discount 50%, etc.
         r'\b\d+\s*руб?\b',                         # 100 руб, 500 рублей, etc.
         r'\b\d+\s*(?:₽|₸|$|€)\b',                  # 100₽, 500₸, $50, etc.
         r'\b(?:бесплатно|free)\b',                 # бесплатно, free
@@ -346,27 +347,6 @@ def wrap_with_limits(draw, text, font, max_width, max_lines, ellipsis):
                 lines[-1] = ell
     return lines
 
-    # Truncate lines to max_lines
-    if max_lines and len(lines) > max_lines:
-        lines = lines[:max_lines]
-
-    # Apply ellipsis to last line if needed
-    if ellipsis and lines:
-        last = lines[-1]
-        ell = "…"
-        while text_width(draw, last, font) > max_width and len(last) > 0:
-            last = last[:-1]
-        # now ensure ellipsis fits
-        while text_width(draw, last + ell, font) > max_width and len(last) > 0:
-            last = last[:-1]
-        if last != lines[-1]:
-            lines[-1] = last + ell
-        else:
-            # if still overflowing (rare), append ellipsis safely
-            if text_width(draw, last, font) > max_width:
-                lines[-1] = ell
-    return lines
-
 def resolve_style(style_key, layout_key, banner_key, language="English"):
     # Use Yango_pro_app style for specific banner sizes
     if layout_key in ["Yango_pro_app", "Yango_app"] and banner_key in ["1200x1200", "1200x1500", "1200x628"]:
@@ -389,8 +369,8 @@ def resolve_style(style_key, layout_key, banner_key, language="English"):
                     font = load_font(base["font"], base["size"][banner_key])
                     logger.info(f"Successfully loaded Arabic font using original method: {base['font']}")
                 except Exception as e:
-                    logger.warning(f"Original Arabic font loading failed: {e}, trying fallback")
-                    font = load_arabic_font_with_fallback(base["size"][banner_key])
+                    logger.warning(f"Original Arabic font loading failed: {e}, using default font")
+                    font = ImageFont.load_default()
             else:
                 font = load_font(base["font"], base["size"][banner_key])
             return base, font
@@ -409,18 +389,18 @@ def resolve_style(style_key, layout_key, banner_key, language="English"):
         else:
             base[k] = v
     
-    # Use Arabic font fallback for Arabic language
-    if language == "Arabic":
-        # For Arabic, try to use the original font loading method first
-        try:
+            # Use Arabic font loading for Arabic language
+        if language == "Arabic":
+            # For Arabic, try to use the original font loading method first
+            try:
+                font = load_font(base["font"], base["size"][banner_key])
+                logger.info(f"Successfully loaded Arabic font using original method: {base['font']}")
+            except Exception as e:
+                logger.warning(f"Original Arabic font loading failed: {e}, using default font")
+                font = ImageFont.load_default()
+        else:
             font = load_font(base["font"], base["size"][banner_key])
-            logger.info(f"Successfully loaded Arabic font using original method: {base['font']}")
-        except Exception as e:
-            logger.warning(f"Original Arabic font loading failed: {e}, trying fallback")
-            font = load_arabic_font_with_fallback(base["size"][banner_key])
-    else:
-        font = load_font(base["font"], base["size"][banner_key])
-    return base, font
+        return base, font
 
 def line_height_px(font, lh_factor):
     ascent, descent = font.getmetrics()
@@ -766,7 +746,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             download_font_size = download_font_sizes.get(banner_key, 64)
             # Use Arabic-aware font loading for download phrase
             if language == "Arabic":
-                download_font = load_arabic_font_with_fallback(download_font_size)
+                download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             else:
                 download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
@@ -1011,7 +991,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             download_font_size = download_font_sizes.get(banner_key, 64)
             # Use Arabic-aware font loading for download phrase
             if language == "Arabic":
-                download_font = load_arabic_font_with_fallback(download_font_size)
+                download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             else:
                 download_font = load_font("Fonts/YangoGroupHeadline-HeavyArabic.ttf", download_font_size)
             
