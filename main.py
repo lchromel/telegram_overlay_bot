@@ -127,12 +127,18 @@ async def shutdown_event():
             logger.error(f"Error shutting down Telegram application: {e}")
 
 def load_font(path, size):
+    """Load font with proper HarfBuzz support for Arabic text"""
     try:
+        # Try to load with RAQM layout engine first (best for Arabic/RTL text)
+        # RAQM uses HarfBuzz for proper text shaping
         return ImageFont.truetype(path, size=size, layout_engine=ImageFont.LAYOUT_RAQM)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to load font with RAQM layout engine: {e}")
         try:
+            # Fallback to default layout engine (still uses FreeType)
             return ImageFont.truetype(path, size=size)
-        except Exception:
+        except Exception as e2:
+            logger.error(f"Failed to load font {path}: {e2}")
             return ImageFont.load_default()
 
 
@@ -145,13 +151,118 @@ def load_font(path, size):
 
 
 
+def verify_arabic_font_capability(font, text):
+    """
+    Verify that the Arabic font can properly render the given text.
+    This helps diagnose font loading issues.
+    """
+    if not any('\u0600' <= ch <= '\u06FF' for ch in text):  # Not Arabic
+        return True
+    
+    try:
+        # Test if the font can render Arabic characters
+        test_chars = "ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن ه و ي"
+        working_chars = []
+        missing_chars = []
+        
+        for char in test_chars:
+            if char.strip():
+                try:
+                    bbox = font.getbbox(char)
+                    if bbox != (0, 0, 0, 0):
+                        working_chars.append(char)
+                    else:
+                        missing_chars.append(char)
+                except Exception:
+                    missing_chars.append(char)
+        
+        if missing_chars:
+            logger.warning(f"Font missing {len(missing_chars)} Arabic characters: {missing_chars}")
+            logger.info(f"Font working with {len(working_chars)} Arabic characters: {working_chars}")
+        else:
+            logger.info(f"Font supports all tested Arabic characters")
+        
+        return len(working_chars) > 0
+    except Exception as e:
+        logger.error(f"Error testing Arabic font capability: {e}")
+        return False
+
+def test_arabic_text_pipeline():
+    """
+    Test the complete Arabic text rendering pipeline to ensure it's working correctly.
+    This function can be called to verify the setup.
+    """
+    try:
+        # Test text
+        test_text = "اركب توك توك دابا"
+        logger.info(f"=== ARABIC TEXT PIPELINE TEST ===")
+        logger.info(f"Original text: '{test_text}'")
+        
+        # Step 1: Reshape with arabic_reshaper
+        reshaped_text = arabic_reshaper.reshape(test_text)
+        logger.info(f"Step 1 - Reshaped: '{reshaped_text}'")
+        
+        # Step 2: Apply BIDI with python-bidi
+        bidi_text = get_display(reshaped_text)
+        logger.info(f"Step 2 - BIDI applied: '{bidi_text}'")
+        
+        # Step 3: Test font loading
+        font_path = "Fonts/YangoGroupHeadline-HeavyArabic.ttf"
+        if os.path.exists(font_path):
+            try:
+                font = ImageFont.truetype(font_path, size=64, layout_engine=ImageFont.LAYOUT_RAQM)
+                logger.info(f"✓ Font loaded with RAQM: {font_path}")
+                
+                # Test character rendering
+                test_char = "ا"
+                bbox = font.getbbox(test_char)
+                logger.info(f"Test character '{test_char}' bbox: {bbox}")
+                
+                if bbox != (0, 0, 0, 0):
+                    logger.info("✓ Arabic font is working correctly")
+                else:
+                    logger.error("✗ Arabic font has issues")
+                    
+            except Exception as e:
+                logger.error(f"✗ Failed to load font with RAQM: {e}")
+                try:
+                    font = ImageFont.truetype(font_path, size=64)
+                    logger.info(f"✓ Font loaded without RAQM: {font_path}")
+                except Exception as e2:
+                    logger.error(f"✗ Failed to load font completely: {e2}")
+        else:
+            logger.error(f"✗ Font file not found: {font_path}")
+        
+        logger.info("=== END ARABIC TEXT PIPELINE TEST ===")
+        
+    except Exception as e:
+        logger.error(f"Error in Arabic text pipeline test: {e}")
+
 def is_rtl_text(s: str) -> bool:
     return any('\u0590' <= ch <= '\u08FF' for ch in s)  # Hebrew+Arabic ranges
 
 def normalize_text(text: str) -> str:
+    """
+    Proper Arabic text processing pipeline:
+    1. arabic_reshaper prepares the letters in their correct forms
+    2. python-bidi sets the correct direction (right-to-left)
+    3. Only after that will Pillow be able to render properly with HarfBuzz/FreeType
+    """
     if any('\u0600' <= ch <= '\u06FF' for ch in text):  # Arabic
-        text = arabic_reshaper.reshape(text)
-        text = get_display(text)
+        try:
+            # Step 1: Reshape Arabic text for proper letter forms
+            reshaped_text = arabic_reshaper.reshape(text)
+            logger.info(f"Arabic text reshaped: '{text}' -> '{reshaped_text}'")
+            
+            # Step 2: Apply bidirectional algorithm for RTL text
+            bidi_text = get_display(reshaped_text)
+            logger.info(f"Arabic text with BIDI: '{reshaped_text}' -> '{bidi_text}'")
+            
+            return bidi_text
+        except Exception as e:
+            logger.error(f"Error processing Arabic text '{text}': {e}")
+            # Return original text if processing fails
+            return text
     return text
 
 def text_width(draw, text, font):
@@ -354,6 +465,16 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     if len(discount_text_color) == 4:
         discount_text_color = discount_text_color[:3]
     
+    # Normalize text for Arabic using proper pipeline
+    original_text = text
+    text = normalize_text(text)
+    
+    # For Arabic text, verify font capability
+    if any('\u0600' <= ch <= '\u06FF' for ch in original_text):
+        logger.info(f"Arabic text detected: '{original_text}' -> processed: '{text}'")
+        if not verify_arabic_font_capability(font, text):
+            logger.warning(f"Font may not support Arabic text properly")
+    
     # Detect discounts and currency amounts in the text
     highlights = list(detect_highlights(text))
     
@@ -364,8 +485,26 @@ def draw_text_with_highlights(draw, text, font, x, y, fill_color, discount_color
     
     if not highlights:
         # No highlights found, draw normal text
-        draw.text((x, y), text, font=font, fill=fill_color)
-        return y + font.getbbox(text)[3]
+        try:
+            draw.text((x, y), text, font=font, fill=fill_color)
+            bbox = font.getbbox(text)
+            logger.info(f"Successfully drew text: '{text}' at ({x}, {y}), bbox: {bbox}")
+            return y + bbox[3]
+        except Exception as e:
+            logger.error(f"Error drawing text '{text}': {e}")
+            # Fallback: try to draw character by character
+            current_x = x
+            for char in text:
+                try:
+                    char_bbox = font.getbbox(char)
+                    if char_bbox != (0, 0, 0, 0):
+                        draw.text((current_x, y), char, font=font, fill=fill_color)
+                        current_x += char_bbox[2]
+                    else:
+                        logger.warning(f"Character '{char}' has invalid bbox, skipping")
+                except Exception as char_e:
+                    logger.error(f"Error drawing character '{char}': {char_e}")
+            return y + font.getbbox("A")[3]  # Use fallback height
     
 
     
@@ -1058,6 +1197,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in help command: {e}")
         await update.message.reply_text("Произошла ошибка при обработке команды.")
 
+async def test_arabic_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Test Arabic text rendering pipeline"""
+    try:
+        # Run the Arabic text pipeline test
+        test_arabic_text_pipeline()
+        
+        # Send test results
+        await update.message.reply_text(
+            "🧪 *Arabic Text Pipeline Test Completed*\n\n"
+            "Check the bot logs for detailed results.\n\n"
+            "The test verifies:\n"
+            "• arabic_reshaper text reshaping\n"
+            "• python-bidi bidirectional processing\n"
+            "• Font loading with RAQM layout engine\n"
+            "• Arabic character rendering capability",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Error in test_arabic_command: {e}")
+        await update.message.reply_text(
+            f"❌ *Error running Arabic text test:* {str(e)}",
+            parse_mode='Markdown'
+        )
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the conversation"""
     await update.message.reply_text(
@@ -1328,6 +1491,7 @@ if application:
     
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("test_arabic", test_arabic_command))
     logger.info("Telegram handlers registered successfully")
 else:
     logger.error("Cannot register handlers - application is None")
