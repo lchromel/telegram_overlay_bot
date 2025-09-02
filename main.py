@@ -363,13 +363,13 @@ def resolve_style(style_key, layout_key, banner_key, language="English"):
             
             # Use Arabic font fallback for Arabic language
             if language == "Arabic":
-                # For Arabic, use YSTextAR-Medium.ttf for subline and disclaimer for better readability
+                # For Arabic, use YangoText-Medium.ttf for subline and disclaimer for better readability
                 if style_key in ["subline", "disclaimer"]:
                     try:
-                        font = load_font("Fonts/YSTextAR-Medium.ttf", base["size"][banner_key])
-                        logger.info(f"Successfully loaded YSTextAR-Medium for Arabic {style_key}: {base['size'][banner_key]}px")
+                        font = load_font("Fonts/YangoText-Medium.ttf", base["size"][banner_key])
+                        logger.info(f"Successfully loaded YangoText-Medium for Arabic {style_key}: {base['size'][banner_key]}px")
                     except Exception as e:
-                        logger.warning(f"Failed to load YSTextAR-Medium for Arabic {style_key}: {e}, falling back to original font")
+                        logger.warning(f"Failed to load YangoText-Medium for Arabic {style_key}: {e}, falling back to original font")
                         try:
                             font = load_font(base["font"], base["size"][banner_key])
                             logger.info(f"Successfully loaded Arabic font using original method: {base['font']}")
@@ -415,13 +415,13 @@ def resolve_style(style_key, layout_key, banner_key, language="English"):
     
     # Use Arabic font loading for Arabic language
     if language == "Arabic":
-        # For Arabic, use YSTextAR-Medium.ttf for subline and disclaimer for better readability
+        # For Arabic, use YangoText-Medium.ttf for subline and disclaimer for better readability
         if style_key in ["subline", "disclaimer"]:
             try:
-                font = load_font("Fonts/YSTextAR-Medium.ttf", base["size"][banner_key])
-                logger.info(f"Successfully loaded YSTextAR-Medium for Arabic {style_key}: {base['size'][banner_key]}px")
+                font = load_font("Fonts/YangoText-Medium.ttf", base["size"][banner_key])
+                logger.info(f"Successfully loaded YangoText-Medium for Arabic {style_key}: {base['size'][banner_key]}px")
             except Exception as e:
-                logger.warning(f"Failed to load YSTextAR-Medium for Arabic {style_key}: {e}, falling back to original font")
+                logger.warning(f"Failed to load YangoText-Medium for Arabic {style_key}: {e}, falling back to original font")
                 try:
                     font = load_font(base["font"], base["size"][banner_key])
                     logger.info(f"Successfully loaded Arabic font using original method: {base['font']}")
