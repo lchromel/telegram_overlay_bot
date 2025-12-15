@@ -859,8 +859,7 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             x = (w - max_w) // 2  # Center horizontally
             # Special handling for different banner sizes
             if banner_key == "1080x1920":
-                # Position text at the top for 1080×1920 banners
-                y = pad["top"] if pad.get("top") else 50  # Use top padding or default 50px
+                y = h - 250 - total_h  # 50px default + 200px extra = 250px
             elif banner_key == "1200x1500" and layout_key in ["Yango_pro_app", "Yango_app"]:
                 y = h - pad["bottom"] - total_h - 200  # Move up by 200px
             elif banner_key == "1200x1200" and layout_key in ["Yango_pro_app", "Yango_app"]:
@@ -896,8 +895,13 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             main_blocks = [block for block in blocks if block[3] != "disclaimer"]
             disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
             
-            # Text is already positioned at top, no additional adjustments needed
-            # Keep y as calculated from top position
+            # Move text block up by 30px for Yango_pro_app and Yango_app, otherwise 50px lower
+            if layout_key in ["Yango_pro_app", "Yango_app"]:
+                y -= 30
+            elif layout_key in ["Yango_Red", "Yango_pro_Red"]:
+                y += 200  # Move down by 170px for Yango_Red layouts
+            else:
+                y += 50
             
             # Process main text blocks first
             for i, (lines, st, font, key) in enumerate(main_blocks):
