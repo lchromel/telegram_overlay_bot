@@ -831,9 +831,9 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             if not raw.strip():
                 continue
             st, font = resolve_style(key, layout_key, banner_key, language)
-            # Special handling for headline block width in Yango_Red and Yango_pro_Red layouts
-            if key == "headline" and layout_key in ["Yango_Red", "Yango_pro_Red"] and banner_key in ["1200x1200", "1200x1500"]:
-                # Set headline block width to banner width minus 20%
+            # Special handling for headline block width in 1200×1200 and 1200×1500 formats
+            if key == "headline" and banner_key in ["1200x1200", "1200x1500"]:
+                # Set headline block width to banner width minus 10%
                 headline_max_w = int(w * 0.9)
                 lines = wrap_with_limits(draw, raw, font, headline_max_w, st.get("max_lines", 0), st.get("ellipsis", False))
             else:
@@ -859,7 +859,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             x = (w - max_w) // 2  # Center horizontally
             # Special handling for different banner sizes
             if banner_key == "1080x1920":
-                y = h - 250 - total_h  # 50px default + 200px extra = 250px
+                # Position text at the top for 1080×1920 banners
+                y = pad["top"] if pad.get("top") else 50  # Use top padding or default 50px
             elif banner_key == "1200x1500" and layout_key in ["Yango_pro_app", "Yango_app"]:
                 y = h - pad["bottom"] - total_h - 200  # Move up by 200px
             elif banner_key == "1200x1200" and layout_key in ["Yango_pro_app", "Yango_app"]:
@@ -895,13 +896,8 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             main_blocks = [block for block in blocks if block[3] != "disclaimer"]
             disclaimer_blocks = [block for block in blocks if block[3] == "disclaimer"]
             
-            # Move text block up by 30px for Yango_pro_app and Yango_app, otherwise 50px lower
-            if layout_key in ["Yango_pro_app", "Yango_app"]:
-                y -= 30
-            elif layout_key in ["Yango_Red", "Yango_pro_Red"]:
-                y += 200  # Move down by 170px for Yango_Red layouts
-            else:
-                y += 50
+            # Text is already positioned at top, no additional adjustments needed
+            # Keep y as calculated from top position
             
             # Process main text blocks first
             for i, (lines, st, font, key) in enumerate(main_blocks):
