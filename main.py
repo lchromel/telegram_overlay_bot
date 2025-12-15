@@ -831,7 +831,13 @@ def compose(bg, headline, subline, disclaimer, banner_key, layout_key, apply_ove
             if not raw.strip():
                 continue
             st, font = resolve_style(key, layout_key, banner_key, language)
-            lines = wrap_with_limits(draw, raw, font, max_w, st.get("max_lines", 0), st.get("ellipsis", False))
+            # Special handling for headline block width in Yango_Red and Yango_pro_Red layouts
+            if key == "headline" and layout_key in ["Yango_Red", "Yango_pro_Red"] and banner_key in ["1200x1200", "1200x1500"]:
+                # Set headline block width to banner width minus 20%
+                headline_max_w = int(w * 0.8)
+                lines = wrap_with_limits(draw, raw, font, headline_max_w, st.get("max_lines", 0), st.get("ellipsis", False))
+            else:
+                lines = wrap_with_limits(draw, raw, font, max_w, st.get("max_lines", 0), st.get("ellipsis", False))
             blocks.append((lines, st, font, key))
 
         # measure
